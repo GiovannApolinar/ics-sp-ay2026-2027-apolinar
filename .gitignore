@@ -1,0 +1,13 @@
+# LaTeX build files (rebuildable from any commit)
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.lot
+*.lof
+*.out
+*.toc
+*.synctex.gz
+manuscript/Texfiles/*.pdf

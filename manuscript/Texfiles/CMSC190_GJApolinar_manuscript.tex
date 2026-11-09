@@ -1,0 +1,1770 @@
+%Special Problem manuscript (Chapters I-III) based on icsthesissample.tex
+%Template author: JCEPlaras
+%Follows APA citation
+
+\documentclass{icsthesis}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{array}
+\usepackage{url}
+\usepackage{nameref}
+
+%\usepackage{showframe} %for debugging the margins
+
+%Cross-reference to a section by its title (headings are unnumbered)
+\newcommand{\secref}[1]{\textit{\nameref{#1}}}
+
+%icsthesis.cls turns hyphenation off, so allow looser word spacing instead of letting long words
+%run past the right margin
+\setlength{\emergencystretch}{5em}
+
+%Replace the values here, various commands depend on this variables
+\renewcommand{\TITLE}{ORDINAL DEEP LEARNING FOR AUTOMATED FALL ARMYWORM DAMAGE SEVERITY SCORING IN
+FAWCHECK: A CNN-BASED APPROACH TO THE PRASANNA SCALE}
+\renewcommand{\AUTHOR}{GIOVANN JOSH N. APOLINAR}
+\renewcommand{\DEGREE}{BACHELOR OF SCIENCE IN COMPUTER SCIENCE}
+\renewcommand{\MONTH}{NOVEMBER}
+\renewcommand{\YEAR}{2026}
+\newcommand{\ADVISER}{ARIAN J. JACILDO}
+
+\begin{document}
+
+	\begin{frontmatter}
+		%create title
+		\maketitle
+
+		%TOC
+		\maketableofcontents
+
+		%Resync the class's page counter, since the TOC can run past one page
+		\setcounter{pagecounter}{\value{page}}\addtocounter{pagecounter}{-1}
+
+		%LOT
+		\makelistoftables
+
+		%ABSTRACT (not needed for the proposal; uncomment to restore)
+		\setcounter{pagecounter}{\value{page}}\addtocounter{pagecounter}{-1}
+		\begin{abstractwithpageno}
+		\\
+		\textbf{\AUTHOR}, University of the Philippines Los Ba\~{n}os, \MONTH\ \YEAR.
+		\textbf{\TITLE}
+		\\Adviser: \ADVISER\\
+		(abstract text here)
+		\end{abstractwithpageno}
+
+	\end{frontmatter}
+
+	%BODY OF THESIS HERE (Use up to 3 levels only, (sec -> subsec -> subsubsec)
+	\begin{mainmatter}
+
+		%=====================================================================
+		\section{INTRODUCTION}\label{sec:intro}
+
+			\subsection{Background of the Study}\label{sec:background}
+
+				The fall armyworm (FAW), \textit{Spodoptera frugiperda} (J.~E. Smith), is among the
+				most invasive pests that bring serious economic loss to Philippine maize production.
+				The Department of Agriculture recorded infestations affecting more than 5,000
+				farmers across approximately 3,200 hectares by mid-2024, as reported in the FAWCheck
+				v1 study \citep{casasola2026}. By mid-August 2024, the pest had destroyed an
+				estimated 734 metric tons of corn worth about PHP~57.03 million. These losses
+				contributed to a national deficit, with second-quarter output falling 20.35\%. Farm
+				grain prices, meanwhile, remained nearly flat while retail corn prices rose 5.75\%,
+				leaving growers selling less grain of lower quality with no price gain to offset the
+				loss. Because of the FAW's ability to spread quickly, the time between detection and
+				intervention can often mean the difference between a manageable infestation and a
+				lost crop. Effective integrated pest management necessitates the ability to
+				determine not only whether a plant is infested, but also the extent of damage the
+				plant has sustained, as varying degrees are important in evaluating germplasm
+				resistance.
+
+				Typically, the screening process uses a visual rating scale as the basis for
+				evaluation. The scale used in this study is the one to nine foliar damage scale of
+				\citet{prasanna2018}, which is modified from the whorl-stage screening scales of
+				\citet{davis1992}. A field technician assesses the plant, matches what is visible
+				against a set of ordered descriptors, and assigns an integer score.
+
+				Thus, the main motivation of this study lies in two characteristics of this rating
+				scale. First, the scale is ordinal and not nominal. A score of 5 denotes a
+				significantly greater degree of damage than a score of 4. A model that treats the
+				nine categorical scores as unordered labels discards this ranking structure. With
+				the use of multi-class cross-entropy, predicting 3 when the true target is 6 incurs
+				the same loss as predicting 5 when the true target is 6. Essentially, such a loss
+				function is blind to order, which is fundamental in this problem.
+
+				Second, the distance between scores carries meaning in the screening process.
+				\citet{prasanna2018} present the scale for assessing foliar damage in maize
+				germplasm entries, and group its scores into resistance-response bands: score 1
+				highly resistant, scores 2 and 3 resistant, scores 4 and 5 partially resistant,
+				scores 6 and 7 susceptible, and scores 8 and 9 highly susceptible (see
+				Table~\ref{tab:prasanna}). In assessing the resistance of maize, a confusion between
+				6 and 7 leaves an entry in the susceptible category, while a confusion between 5 and
+				7 moves the resistance label to a different categorical response, from partially
+				resistant to susceptible. Therefore, errors on this scale are not interchangeable. A
+				model that is blind to these differences is likely to produce inefficient results
+				regardless of how accurate its metrics appear.
+
+				Moreover, FAWCheck v1 was built as a field monitoring tool for agricultural
+				technicians and researchers \citep{casasola2026}. In this use, the score describes
+				how badly a crop is damaged. The most expensive error is scoring a susceptible or
+				highly susceptible plant (scores 6 through 9) below 6, because it understates damage
+				where damage is greatest. This study therefore treats scores 6 through 9 as
+				\textit{severe damage}, starting where the susceptible category of
+				\citet{prasanna2018} begins. Over-scoring also has a cost, because it overstates
+				damage. The study measures both whether models keep plants in the correct response
+				category, in either direction, and whether they detect severe damage (see
+				\secref{sec:metrics}).
+
+			\subsection{Statement of the Problem}\label{sec:problem}
+
+				FAWCheck v1 is an existing application that digitizes this rating workflow. It is a
+				progressive web application which uses a convolutional neural network (CNN) to score
+				an image of maize, along with a rule-based scoring system that feeds on a symptom
+				questionnaire. The outputs of the two components are fused into a final severity
+				estimate. It is a working system with measured performance, and the present study
+				builds on this foundation rather than displacing it. The CNN was reported at 50.00\%
+				exact accuracy, 0.4105 macro F1, 76.47\% within-one-level accuracy, and 0.8088 mean
+				absolute error (MAE). Moreover, the fused system reached 83.13\% exact agreement
+				with expert scores, 0.27 MAE, and 0.7881 weighted Cohen's kappa
+				\citep{casasola2026}.
+
+				However, three problems limit what can be built on those results. First, the v1 CNN
+				treats severity scoring as multi-class classification with sparse categorical
+				cross-entropy \citep{casasola2026}. It cannot represent the inherent order of the
+				severity scale, and its loss penalizes the categories with similar magnitude without
+				accounting for the real distance among target scores. Nonetheless, the errors were
+				already largely adjacent to the true target, as 76.47\% of its predictions fell
+				within one level of the reference \citep{casasola2026}. This implies that the errors
+				did not arise from random noise but are structured around the true label. Thus, the
+				question is not whether ordinal structure matters, but whether modeling it reduces
+				the more distant errors that remain.
+
+				Second, the v1 results cannot serve as a baseline. The CNN metrics were computed on
+				a small evaluation set of 68 images. Applying the Wilson score method to the
+				published counts gives a 95\% confidence interval (CI) of [0.3844, 0.6156] for the
+				CNN accuracy, an interval width of 0.2312. These findings do not point to a defect
+				in the model, but to a limit of what a sample of 68 images can establish. At that
+				sample size, the 95\% CI spans roughly 38\% to 62\%, wide enough to contain both a
+				poor classifier and a good one. Consequently, any later model that scores within
+				this range cannot be said to have improved on the 50\% baseline, since the
+				difference would be indistinguishable from sampling noise at this evaluation size.
+
+				Third, the v1 study correctly attributes the weak performance of the CNN to class
+				imbalance, limited samples at some severity levels, variation in field image
+				quality, and visual overlap between neighboring categories \citep{casasola2026}.
+				Indeed, the dataset is severely skewed toward the lower-end scoring categories, but
+				this is not the only factor that contributes to the weak performance of the model. A
+				review of the file-level structure of the train/validation/test partition, conducted
+				for this study, shows that the partition is non-representative (see
+				\secref{sec:discard}). Because validation results also guided model selection in v1
+				\citep{casasola2026}, that decision process inherited the same bias from the
+				non-representative partition. This is a separate defect from class imbalance, and
+				any before-and-after comparison run on this partition measures artifacts of the
+				partition rather than genuine differences in model performance.
+
+			\subsection{Objectives}\label{sec:objectives}
+
+				To determine whether ordinal regression improves automated FAW foliar damage
+				severity scoring on the Prasanna et al.\ one to nine scale relative to standard
+				multi-class classification, under an evaluation protocol capable of supporting that
+				comparison.
+
+				Specifically, the researcher would like to do the following:
+
+				\begin{enumerate}
+					\item To compare the rank-consistent CORAL \citep{cao2020} and CORN
+						\citep{shi2023corn} and the regression-based THOR \citep{fuchs2022} against
+						a softmax multi-class baseline on identical cross-validation folds, with
+						identical imbalance handling \citep{kang2020} applied to all four models,
+						and determine whether ordinal regression reduces severity-scoring error.
+					\item To determine whether the three ordinal methods differ from one another on
+						this task, and whether the published expectations---CORN advantaged on mean
+						absolute error and CORAL on outlier-sensitive error \citep{shi2023corn},
+						measured here as macro-averaged mean squared error (see
+						\secref{sec:evaluation}), and THOR advantaged over CORAL on mean absolute
+						error \citep{fuchs2022}---hold under severe class imbalance at nine ordinal
+						levels.
+					\item To measure the agreement between the author's and an expert's independent
+						scores on every newly labeled image, to locate the model's agreement with
+						the expert relative to it, and to check the consistency of the inherited
+						labels across near-duplicate images.
+					\item To rebuild the FAWCheck evaluation protocol on a stratified,
+						leakage-controlled foundation, and determine how much of the change in
+						measured performance is attributable to the protocol rather than to the
+						model, by training the same v1 recipe on the same images under the inherited
+						partition and under the rebuilt protocol.
+				\end{enumerate}
+
+				The third objective sets the models beside a human rater: each model's agreement with
+				the expert is reported next to the author's, on the same images (see
+				\secref{sec:humanref}). This is a reference point, not a ceiling (see
+				\secref{sec:scope}).
+
+			\subsection{Significance of the Study}\label{sec:significance}
+
+				For the Institute of Plant Breeding, the Entomology Laboratory Division, and the
+				users of FAWCheck, this study produces a foliar damage severity model whose
+				performance is reported with quantified uncertainty: confidence intervals on
+				accuracy, macro-MAE, and weighted kappa, taken from repeated stratified
+				cross-validation with corrected variance and from bootstrap resampling by
+				near-duplicate cluster. The v1 study reported its performance as a point estimate,
+				an accuracy of 50.00\% on 68 evaluation images, with no interval. This quantified
+				uncertainty is the precondition for two decisions. First, it indicates whether the
+				image-based score can be trusted in the field. Second, it indicates whether future
+				dataset growth actually improves the model, which can be established if a future
+				result clears the interval of the earlier one.
+
+				For agricultural computer vision, the study applies rank-consistent ordinal
+				regression to an expert-rated agronomic damage scale. As discussed in
+				\secref{sec:cnnsev}, existing crop severity studies mostly use a small number of
+				coarse bins evaluated with plain accuracy. Meanwhile, ordinal methods and
+				agreement-based metrics are established practice in medical image grading.
+
+				Methodologically, the study contributes a reusable evaluation protocol, described in
+				\secref{sec:protocol}, that can serve subsequent FAWCheck model iterations and other
+				rating-scale tasks in the Laboratory's work. The protocol extends the v1 study,
+				whose own recommendations called for expanded, better-balanced data
+				\citep{casasola2026}.
+
+			\subsection{Scope and Limitations of the Study}\label{sec:scope}
+
+				The study only covers the image-based severity model of FAWCheck. It does not
+				address cob or ear damage, yield loss, the rule-based heuristic scoring, the fusion
+				of image-based and rule-based scores, or the integration of the resulting model into FAWCheck's deployed inference service, including its export to the ONNX format. Whether fusion improves on the image model
+				alone is recorded as an open question but is not tested. The v1 comparison of its CNN-only and fused-system figures \citep{casasola2026} cannot settle it: the two figures come from different datasets, class mixes, and reference labels, and the rule engine's symptom answers mirror the descriptors behind the reference score. Settling it requires image-only, rule-only, and fused arms on the same held-out cases. The scope only covers
+				foliar damage on the Prasanna et al.\ one to nine severity scale
+				\citep{prasanna2018}.
+
+				Moreover, the model comparison is limited to a softmax baseline and three ordinal
+				methods: CORAL and CORN from the rank-consistent binary-decomposition family, and
+				THOR from the regression-based family. It does not cover the whole ordinal
+				regression family. Soft ordinal labels are excluded, and the regression-based family
+				is represented by THOR alone, not also by plain regression with tuned cut-points
+				(see \secref{sec:whythor}). Replacing MobileNetV3Small with a stronger self-supervised backbone, such as the distilled DINOv3 ViT-S/16 \citep{simeoni2025}, is left to future work.
+
+				Furthermore, the prediction target is an image-based Prasanna rating: a score
+				assigned by a rater looking at a photograph, not at the plant. The descriptors count
+				affected leaves and refer to the whorl and furl, which a single photograph may show
+				only in part, so both the labels and the agreement measured in this study describe
+				rating photographs, not scoring plants in the field. The scale was also designed for
+				maize germplasm entries, typically assessed under controlled infestation
+				\citep{prasanna2018,davis1992}, whereas much of the imagery here comes from farmer
+				fields and public datasets. FAWCheck applies the scale to field monitoring, an
+				extension of its stated purpose, so the response categories are read as levels of
+				damage, not as judgments of a plant's resistance. Because the scale is the derived
+				form identified in the review of rating scales (see \secref{sec:scales}), results
+				reported here are not strictly comparable to published screening results reported
+				against the original Davis or Williams scales.
+
+				Whether the ordinal comparison is tested as a confirmatory hypothesis depends on a
+				sensitivity check made before any ordinal model is trained (see
+				\secref{sec:sensitivity}). If the comparison cannot detect the smallest effect of
+				interest even after the pre-registered responses, it is reported as exploratory.
+
+				Score 9 is represented by four images in the inherited dataset. The expansion target
+				requires it to reach at least 15; if it does not, it is merged with score 8 for
+				reporting under a pre-registered rule and is out of scope for quantitative per-level
+				claims (see \secref{sec:merge}). Even at 15 images, per-level claims for score 9
+				carry wide intervals.
+
+				In addition, model performance depends on the representativeness of the training
+				data. The inherited dataset mixes field photographs with publicly sourced images,
+				and the candidate expansion pool is drawn from a single region and season in
+				Tanzania, captured largely on non-phone cameras. Generalization to Philippine field
+				conditions is therefore measured, not assumed, on a Philippine external test set of
+				locally collected phone photographs (see \secref{sec:holdout}). At a minimum of 150
+				images, a proportion near 50\% on that test set carries a 95\% confidence interval
+				about 16 percentage points wide, against 23 for v1's 68-image evaluation.
+
+				Finally, no human ceiling is measured. Agreement is measured between the author and
+				one expert, which partly reflects how well the author has learned the rubric and is
+				therefore a reference point rather than a bound on achievable performance (see
+				\secref{sec:annotation}). A ceiling would need two experts scoring the same images
+				independently, which this study does not do and the literature does not report for
+				this scale (see \secref{sec:observer}). The inherited 2,084 labels, whose provenance is
+				undocumented \citep{casasola2026}, are not re-scored. Their quality is assessed only
+				through their consistency across near-duplicate images, which can reveal
+				inconsistency but cannot establish accuracy.
+
+		%=====================================================================
+		\section{REVIEW OF RELATED LITERATURE}\label{sec:rrl}
+
+			This chapter reviews the rating scale and its reliability, prior image-based approaches
+			to plant damage and disease severity, ordinal regression methods for deep networks and
+			their use in medical grading, and the evaluation methodology under which model
+			comparisons on imbalanced ordinal data can be defended. It closes by stating the gap the
+			present study addresses.
+
+			\subsection{Fall Armyworm Damage Rating Scales}\label{sec:scales}
+
+				The 1--9 foliar damage scale used by FAWCheck derives from the visual rating scales
+				developed by \citet{davis1992} for screening whorl-stage maize for FAW resistance,
+				and reaches this study through \citet{prasanna2018}. The descriptors are cumulative
+				in character: lower scores describe shot-hole feeding on a few leaves, middle scores
+				introduce elongated lesions of increasing extent, and upper scores describe lesions
+				across most leaves accompanied by large irregular holes, terminating at near-total
+				destruction of the whorl and furl.
+
+				\citet{toepfer2021} review the family of FAW leaf damage rating scales and draw a
+				distinction that matters for this study: Davis' 0--9 scale assesses the whorl and
+				furl from a top view, whereas Williams' 0--9 scale assesses the whole plant. The two
+				are frequently integrated in applied work, and \citeauthor{toepfer2021} observe that
+				the scales have been repeatedly modified, and at times misapplied or miscited
+				\citep{toepfer2021}. They propose simplified,
+				instar-independent variants on the grounds that the descriptive distinctions in the
+				original scales are difficult to apply consistently in the field.
+
+				\textit{Scale identification.} The operative scale for this study is the one
+				published as Table 3 of \citet{prasanna2018} and condensed in
+				Table~\ref{tab:prasanna}. Its source line reads ``modified from Davis and Williams
+				(1992)'' \citep{davis1992}. It is therefore neither Davis' whorl-and-furl top-view
+				scale nor Williams' whole-plant scale in its original form, but a derived scale
+				drawing on both, and it is named as such here rather than claimed to correspond
+				strictly to either predecessor.
+
+				\begin{table}[htbp]
+				\vspace{4ex}
+				\centering
+					\caption{Prasanna scale for foliar damage by Fall Armyworm, with descriptors}
+					\label{tab:prasanna}
+					\singlespacing\footnotesize
+					\begin{tabular}{cp{9.2cm}l}
+					\hline
+					\hline
+					Score & Damage symptoms & Response$^{\star}$ \\ \hline
+					1 & No visible leaf-feeding damage & Highly resistant \\[3pt]
+					2 & Few pinholes on one or two older leaves & Resistant \\[3pt]
+					3 & Several shot-holes on a few leaves (fewer than 5) and small circular holes &
+					Resistant \\[3pt]
+					4 & Shot-holes on several leaves (6--8), or small lesions and pinholes, plus a
+					few small elongated lesions (up to 1.3~cm) on whorl and furl leaves & Partially
+					resistant \\[3pt]
+					5 & Elongated lesions (over 2.5~cm) on 8--10 leaves, plus a few small to
+					mid-sized irregular holes eaten from the whorl or furl & Partially resistant
+					\\[3pt]
+					6 & Several large elongated lesions and/or large irregular holes on several
+					whorl and furl leaves & Susceptible \\[3pt]
+					7 & Many elongated lesions of all sizes on several whorl and furl leaves, plus
+					several large irregular holes & Susceptible \\[3pt]
+					8 & Many elongated lesions of all sizes on most whorl and furl leaves, plus many
+					mid- to large-sized irregular holes & Highly susceptible \\[3pt]
+					9 & Whorl and furl leaves almost totally destroyed; plant dying from extensive
+					leaf damage & Highly susceptible \\ \hline\hline
+					\end{tabular}
+
+					\vspace{1ex}
+					\begin{minipage}{0.85\textwidth}
+					\singlespacing\footnotesize
+					Adapted from Table 3 of \citet{prasanna2018}, whose source line reads ``modified
+					from Davis and Williams (1992).'' $^{\star}$Response labels are read in order
+					from the printed column, whose entries are offset from their rows. This reading
+					assigns score 1 to highly resistant, consistent with other descriptions of the
+					scale; it is to be confirmed against a clean copy of the guide.
+					\end{minipage}
+				\vspace{4ex}
+				\end{table}
+
+				The published table supports reading it as admitting both assessment framings.
+				First, its descriptors mix whole-plant leaf counting with whorl-specific detail:
+				scores 2 through 5 are defined by how many leaves carry injury (``1--2 older
+				leaves,'' ``a few leaves (\textless 5 leaves),'' ``several leaves (6--8 leaves),''
+				``8--10 leaves''), while scores 4 through 9 add the condition of the whorl and furl
+				leaves. Second, the nine reference photographs accompanying it (Figure 5 of
+				\citealp{prasanna2018}) show both framings, some filling the frame with one plant's
+				upper leaves and others showing whole plants in a stand. An image is accordingly
+				taken to satisfy this scale's assessment conditions if it shows the extent of leaf
+				injury across the plant, the condition of the whorl and furl, or both, in either
+				framing. This is the sense in which the capture protocol's requirement of one
+				primary maize plant per photograph, with the whorl and upper leaves in frame, is
+				consistent with the scale.
+
+			\subsection{Observer Variability on the Rating Scale}\label{sec:observer}
+
+				\citet{toepfer2021} document observer bias on these scales qualitatively, including
+				difficulty in the mid-to-upper range, but report no kappa, intraclass correlation,
+				or inter-rater correlation coefficient. A partial quantitative estimate does exist.
+				In proposing a simplified TNAU 1--5 scale, \citet{srinivasan2022} report that when
+				the same subjects scored the same plots, the mean standard deviation across raters
+				ranged from 0.48 to 0.80 under the Davis 1--9 scale, against 0.19 to 0.40 under the
+				1--5 alternative. The authors attribute the difference to overlapping descriptions
+				between adjacent Davis scores---noting in particular that damage on one-half of
+				leaves (score 7) and on two-thirds of leaves (score 8) is difficult to distinguish
+				reliably---and observe that reproducibility declines as the number of scale points
+				increases \citep{srinivasan2022}.
+
+				Consequently, the claim that the literature supplies no quantitative estimate of
+				rater variability on this scale is too strong; a dispersion figure exists, even if
+				an agreement coefficient does not. However, the figure that exists is not the figure
+				this study needs. A standard deviation across raters scoring plots is not a
+				quadratic weighted kappa between raters scoring individual images, and the imagery,
+				raters, and conditions differ. The TNAU result is therefore best used as a prior
+				expectation against which this study's own measurement is positioned, not as a
+				substitute for making it. Its finding that mid-to-upper-range distinctions are least
+				reliable also predicts where author--expert disagreement in this study should
+				concentrate, which is a testable expectation rather than an assumption.
+
+				A terminological caution follows from the same source: it distinguishes the original
+				Davis 1--9 scale from a modified version it attributes to Ni et al.\ (as cited in
+				\citealp{srinivasan2022}). Together with the Davis/Williams distinction above, the
+				phrase ``the 1--9 scale'' is ambiguous across at least three referents, which is why
+				the review of rating scales above names the particular derived scale this study
+				uses. It also means that published results reported against ``the Davis scale'' or
+				``the Williams scale'' are not strictly comparable to results reported here, a
+				limitation recorded in the \secref{sec:scope}.
+
+			\subsection{CNN Approaches to Plant Disease and Pest Severity}\label{sec:cnnsev}
+
+				Deep learning for plant disease has been dominated by identification rather than
+				grading. \citet{mohanty2016} and \citet{ferentinos2018} established that CNNs
+				classify disease \textit{type} from leaf imagery with high accuracy, and subsequent
+				reviews document the breadth of that work \citep{lu2021,boulent2019}. Severity
+				assessment is a much smaller literature: a survey of CNN-based plant disease
+				severity assessment identifies only sixteen studies and notes that severity work
+				remains sparse relative to identification \citep{shi2023severity}.
+
+				The severity studies that exist share a structural pattern relevant here. They
+				discretize severity into a small number of coarse bins---four stages for maydis leaf
+				blight of maize \citep{haque2022}, four to six stages for tomato bacterial spot and
+				mosaic virus \citep{astani2026}, and five bands defined by the proportion of
+				diseased leaves in work covered by the survey \citep{shi2023severity}---and they
+				evaluate with plain accuracy and F1. The bins are typically derived from measured
+				lesion or leaf area rather than assigned by an expert against a descriptor rubric.
+				The survey reports that the studies it reviews are evaluated with accuracy,
+				precision, recall, mean average precision, and F1, and it describes none that uses
+				an ordinal-aware loss or an ordinal error measure such as MAE or quadratic weighted
+				kappa \citep{shi2023severity}; the abstracts of \citet{haque2022} and
+				\citet{astani2026} likewise report accuracy-based measures only.
+
+				Furthermore, a four-bin severity task derived from lesion area has fewer decision
+				boundaries than a nine-point expert-rated task, those boundaries are defined by a
+				continuous measurable quantity rather than by a rubric, and its ground truth is not
+				subject to inter-rater disagreement in the same way. Results from that literature do
+				not transfer to the present task, and the present task's difficulty should not be
+				judged against its accuracy figures.
+
+			\subsection{Deep Learning for Fall Armyworm}\label{sec:fawdl}
+
+				Work specific to FAW is, with one exception noted below, binary or
+				detection-oriented rather than graded. \citet{sena2003} established an early
+				image-based approach, segmenting maize plants and classifying image blocks as
+				damaged or non-damaged, with 94.72\% of 720 images correctly classified.
+				\citet{ishengoma2021} applied VGG16, VGG19, InceptionV3, and MobileNetV2 to UAV
+				imagery for infected-versus-uninfected classification, with a follow-up hybrid CNN
+				for faster detection \citep{ishengoma2022}. \citet{zhang2022} address pest
+				identification rather than damage, distinguishing \textit{S.~frugiperda} adults and
+				larvae among 36 maize field pests. \citet{sandhya2025} fuse RGB and thermal imagery
+				for infested-versus-healthy classification, and \citet{prabha2021} deploy a
+				MobileNetV2-based CNN in a mobile application that distinguishes healthy from
+				infested plants, reporting 87\% validation accuracy. Reported accuracies across
+				these studies range from 87\% \citep{prabha2021} to 100\%
+				\citep{ishengoma2021}---figures that reflect the comparative ease of a two-class or
+				identification problem rather than transferable performance on severity grading.
+
+				The nearest approach to severity is that of \citet{dzurume2025}, who classify FAW
+				infestation severity in Bangladeshi maize fields into three levels (none, moderate,
+				severe) using temporal Sentinel-2 imagery and a random forest classifier, reporting
+				overall accuracy between 74\% and 84\%. This is severity work, but at field scale,
+				from satellite multispectral data, with three bins and a non-neural classifier; it
+				addresses neither plant-level assessment, the nine-point scale, nor ordinal
+				structure.
+
+				No published work was located that applies CNNs to ordinal grading of FAW foliar
+				damage on the Davis/Prasanna 1--9 scale. FAWCheck v1 applies a CNN to the scale
+				itself, but as nine-class classification \citep{casasola2026}.
+
+			\subsection{Ordinal Regression for Deep Networks}\label{sec:ordinal}
+
+				\citet{niu2016} introduced the binary-decomposition approach for CNNs---converting a
+				$K$-class ordinal target into $K-1$ binary ``is the rank greater than $k$?''
+				subtasks---and demonstrated it on age estimation. The approach suffers a structural
+				defect: the independently trained binary classifiers can produce inconsistent
+				predictions, estimating a higher probability that the rank exceeds 2 than that it
+				exceeds 1.
+
+				\citet{cao2020} resolve this with the Consistent Rank Logits (CORAL) framework, in
+				which the $K-1$ binary tasks share a single weight vector and differ only in their
+				bias terms. They prove that this weight sharing forces the predicted cumulative
+				probabilities into non-increasing order, guaranteeing rank consistency by
+				construction rather than by post-hoc correction, and confirm it empirically: zero
+				rank inconsistencies on every dataset and seed, against consistently nonzero counts
+				for the unconstrained predecessor \citep{cao2020}.
+
+				CORAL's structure, a single weight vector shared by all thresholds with a separate
+				bias for each, is the neural counterpart of the proportional-odds model of
+				\citet{mccullagh1980}, in which one set of coefficients is shared across all
+				cumulative splits of the scale and only the intercepts differ.
+
+				\citet{shi2023corn} argue that CORAL's guarantee is bought at a cost---the shared
+				weight vector restricts the expressiveness of the output layer---and propose CORN,
+				which achieves rank consistency through conditional training subsets and the chain
+				rule for conditional probabilities, removing the weight-sharing constraint. They
+				report a substantial gain over CORAL. Only in supplementary experiments on two
+				text-review datasets did CORAL attain the lower root mean squared error while CORN
+				attained the lower MAE, which the authors attribute to RMSE penalizing large errors
+				more heavily; on their image datasets, CORN is lower on both \citep{shi2023corn}.
+
+				A third family abandons binary decomposition and regresses a single scalar score,
+				assigning a class according to where that score falls among class boundaries. The
+				threshold-based ranking loss (THOR) of \citet{fuchs2022} fixes those boundaries in
+				advance at integer values and trains the regression with a pairwise ranking loss, so
+				that inputs are projected onto the segment of their class. Its authors report the
+				best MAE among the ordinal methods they compared, which included CORAL
+				\citep{fuchs2022}. No official implementation of THOR is published. On five-grade diabetic retinopathy with a ResNet18 backbone, THOR reached MAE 0.709 against CORAL's 0.965 \citep{fuchs2022}, the most direct published evidence against a rank-consistent head. Plain regression with cut-points tuned after training is the simpler member of the family, but \citet{fuchs2022} include no plain-regression baseline, so their evidence does not rank THOR against it; THOR's fixed boundaries do remove the post-training cut-point step, which would otherwise have to be kept free of evaluation data. Soft ordinal labels \citep{diaz2019} encode the ordinal prior in the label distribution rather than the output layer, a separate line of work.
+
+				\citet{gutierrez2016} provide the broader taxonomy---na\"ive approaches, ordinal
+				binary decompositions, and threshold models---across sixteen algorithms and
+				forty-one datasets. The survey predates the CORAL/CORN line and contains no deep
+				learning methods, so it is cited here for its taxonomy and methodological standard
+				rather than for algorithmic guidance.
+
+				An important qualification applies to both CORAL and CORN as evidence for the
+				present study. Both were validated on face-age estimation at 33 to 55 ranks. CORN's
+				primary datasets were rebalanced to near-equal class counts before training, and
+				neither paper reports a macro-averaged or otherwise imbalance-aware metric
+				\citep{cao2020,shi2023corn}. Neither tests small $K$, and neither tests a
+				distribution with the tail mass of this study's data. THOR's evidence shares the
+				limitation: its five-class experiments did test small $K$, but the diabetic
+				retinopathy and aesthetics datasets were subsampled to equal class sizes before
+				training \citep{fuchs2022}. The rank-consistency guarantee is a proof and transfers
+				regardless; the reported magnitude of predictive improvement does not. No method is therefore an expected winner on a nine-level, heavily skewed scale. The one \textit{a priori} consideration is that CORAL's weight-sharing restriction, the expressiveness cost identified by \citet{shi2023corn}, applies to a backbone fine-tuned with each method's own loss, an untested configuration in which that trade-off is most likely to favor CORN.
+
+				None of these methods addresses class imbalance in training, and in this study
+				imbalance is handled separately from ordinal structure. \citet{kang2020} show that a
+				network's learning can be divided into two parts, representation and classifier.
+				They find that imbalance need not harm representation learning, that representations
+				learned on the natural, unrebalanced distribution generalize best, and that strong
+				performance on rare classes can be recovered by adjusting only the classifier. Their
+				classifier retraining (cRT) method keeps the trained representation fixed,
+				re-initializes the classifier, and retrains only the classifier on class-balanced
+				samples \citep{kang2020}. Because it acts only on the final layer, it applies in the
+				same form to any output layer, which is what this study requires.
+
+			\subsection{Ordinal Methods in Medical Grading}\label{sec:medical}
+
+				Where agricultural severity work has largely not adopted ordinal methods, medical
+				image grading has. Grading against clinical severity scales is common in that field,
+				and quadratic weighted kappa is its conventional reporting metric even for models
+				trained as ordinary classifiers: a cross-entropy-trained network for diabetic
+				retinopathy reports quadratic weighted kappa of 0.888 \citep{farag2022}, and a
+				cascaded CNN ensemble for five-step AREDS macular degeneration staging reports
+				quadratic kappa of 0.870 \citep{xie2023}. Ordinal formulations proper are also
+				established: ordinal regularization for joint diabetic retinopathy and lung nodule
+				grading \citep{tang2023}, rank-consistent CORAL heads in current retinopathy systems
+				\citep{braganca2026}, and deep probabilistic ordinal regression for diabetic
+				retinopathy and prostate cancer grading \citep{toledo2022}.
+
+				The one located instance of an ordinal severity head in plant imaging is instructive
+				as a contrast case rather than a precedent. \citet{bohra2026} propose a multi-task
+				vision transformer for rose leaf disease that includes an ordinal severity head
+				alongside classification and uncertainty estimation. In their limitations, the
+				authors state that the severity labels ``originate from disease categories and not
+				from expert-approved measurement systems'' \citep{bohra2026}, although a later
+				passage describes the annotations as expert-provided; the paper is not internally
+				consistent on this point. Its ablation results, however, settle the practical
+				question: the full model reports severity MAE of $0.000 \pm 0.000$ with Spearman
+				$\rho$ of 1.000 \citep{bohra2026}, indicating that severity is a deterministic
+				function of the class label. The ordinal task is therefore solved trivially and
+				carries no information about ordinal modeling under genuine label uncertainty.
+
+			\subsection{Dataset Bias and Leakage in Plant Imaging}\label{sec:leakage}
+
+				Reported accuracy in plant disease imaging is unusually vulnerable to dataset
+				artifacts. \citet{noyan2022} demonstrates the mechanism on PlantVillage: a random
+				forest trained on only eight background pixels per image reached 49.0\% accuracy
+				across 38 classes, against a 2.6\% chance baseline. \citet{mohanty2016} had earlier
+				reported that their PlantVillage-trained network fell from approximately 99\% to
+				approximately 31\% accuracy when tested on images from other online sources, a
+				result \citet{noyan2022} also cites. Background and capture-condition artifacts
+				correlate with class, and a model can learn the correlation instead of the
+				pathology.
+
+				This has two direct consequences for the present study. First, the v1 dataset mixes
+				approximately 1,500 field and client-provided photographs with approximately 584
+				publicly sourced images, and per-image provenance is not currently recorded
+				\citep{casasola2026}; if source correlates with severity, a model can learn a
+				dataset signature. Second, the v1 dataset retained multiple images of the same plant
+				where available to increase variation \citep{casasola2026}, which is precisely the
+				pattern that leaks across randomly assigned splits. Both require explicit control in the evaluation protocol. The size of the leakage effect is measurable: in CIFAR, replacing test images that had near-duplicates in the training set lowered accuracy by 9--14\% relative \citep{barz2020}.
+
+Shift between training and deployment imagery can also be anticipated in training. Training a new output layer on frozen features before fine-tuning keeps a randomly initialized layer from distorting pretrained features, with reported gains of about 1\% in distribution and 10\% out of distribution \citep{kumar2022}. Augmenting with the corruptions of the deployment device helps only for those corruptions: networks trained on one distortion become robust to it but generalize poorly to others \citep{geirhos2018}. JPEG compression and motion blur are among the common corruptions cataloged by \citet{hendrycks2019}.
+
+			\subsection{Evaluation and Comparison Methods for Imbalanced Ordinal
+			Data}\label{sec:evalmethods}
+
+				\citet{baccianella2009} propose macro-averaged variants of MAE, mean squared error,
+				and zero-one error---computing the error separately per true class and then
+				averaging across classes---and prove these coincide with the conventional
+				micro-averaged forms when class cardinalities are equal, while resisting trivial
+				classifiers on imbalanced data. Their diagnostic argument is the substantive one:
+				under micro-averaged MAE on skewed data, the error-minimizing constant prediction
+				need not even be the majority class, so a system that never predicts rare classes
+				can outscore one that attempts them.
+
+				The same argument applies to quadratic weighted kappa, which is sensitive to
+				marginal distributions in the same way. With scores 6 through 9, the susceptible and
+				highly susceptible categories, comprising 14.0\% of this dataset, kappa could reward
+				a model that declines to predict severe damage---the specific failure this
+				application cannot tolerate.
+
+				Macro-averaging has a countervailing cost the source paper does not address: giving
+				every class equal weight regardless of support means a class with few test items can
+				move the average substantially. \citet{baccianella2009} validate on one dataset
+				family, one learner, and one right-skewed distribution whose rarest class, though
+				3.9\% of the set, still numbers in the hundreds. Its behavior at the per-class test
+				counts arising in this study is undocumented, which is a reason to measure its
+				stability empirically rather than assume it.
+
+				For comparing models, \citet{dietterich1998} established that paired statistical
+				tests applied across cross-validation folds are anti-conservative, because folds
+				sharing training data are not independent. \citet{nadeau2003} provide the corrected
+				resampled \textit{t}-test, which inflates the variance estimate to account for
+				training-set overlap, and show that a variance estimate that ignores this overlap
+				is too small, making spurious significant differences between algorithms likely. \citet{bouckaert2004} found this test replicable, and most
+				replicable when applied to ten-times-repeated ten-fold cross-validation.
+
+				\citet{gutierrez2016} supply the methodological benchmark this study is held
+				against: nested cross-validation to prevent hyperparameter leakage into the test
+				estimate, twenty to thirty random splits per dataset, and Wilcoxon signed-rank tests
+				with Bonferroni correction. The survey also reports its own external-validity
+				limitation---its discretized-regression datasets are binned into equal-frequency
+				classes and so exhibit no class imbalance, and performance patterns diverge between
+				the discretized and genuinely ordinal halves of its benchmark \citep{gutierrez2016}.
+				That is the disclosure the balanced-evaluation choices elsewhere in the ordinal
+				literature needed and did not make.
+
+			\subsection{Reporting Performance Against a Human Ceiling}\label{sec:ceiling}
+
+				Where model predictions are compared against expert labels that themselves carry
+				disagreement, agreement among experts bounds what the model can achieve, and
+				reporting it alongside model performance is established practice in clinical
+				imaging. \citet{schaap2022} provide a clear template: in automating Psoriasis Area
+				and Severity Index scoring, they report the intraclass correlation between CNN and
+				real-life physician scores, report the agreement among five PASI-trained physicians
+				scoring the same images (ICC 0.706--0.793), and compare the CNN's agreement with the
+				real-life scores against the physicians' image-based agreement with them.
+
+				None of the ordinal methodology papers reviewed above provides an analog; all treat
+				their ground truth as uncontested. The present study cannot measure an expert
+				ceiling, because it does not have two experts score the same images independently.
+				It adopts a weaker form of the pattern of \citet{schaap2022}: model agreement with
+				an expert is set beside the agreement between the same expert and the author, a
+				rater trained on the rubric, on the same images.
+
+			\subsection{Gaps Addressed by the Present Study}\label{sec:gaps}
+
+				The literature supports four observations that jointly motivate this study.
+
+				First, ordinal structure in severity scales is real and consequential, and
+				rank-consistent formulations to exploit it exist and are proven
+				\citep{cao2020,shi2023corn}. Those formulations, however, have been validated at
+				large $K$ on balanced or micro-averaged data, never at nine levels under severe
+				skew.
+
+				Second, agricultural severity work has not adopted them. It uses coarse bins derived
+				from measurable area or from class identity, evaluated with plain accuracy
+				\citep{shi2023severity,haque2022,astani2026,bohra2026}. FAW-specific work is binary
+				or detection-oriented
+				\citep{sena2003,ishengoma2021,ishengoma2022,zhang2022,%
+				sandhya2025,prabha2021,dzurume2025},
+				and the one CNN applied to the Prasanna scale treats it as nominal
+				\citep{casasola2026}.
+
+				Third, ordinal regression is used in medical grading against expert-rated scales
+				with measurable rater disagreement \citep{tang2023,braganca2026,toledo2022}, a field
+				where agreement-based reporting is conventional
+				\citep{farag2022,xie2023,schaap2022}. No located work applies rank-consistent
+				ordinal regression to an expert-rated, agronomically standardized damage scale in
+				crop imaging. The Prasanna 1--9 scale sits in that gap.
+
+				Fourth, the evaluation standards under which an improvement claim can be
+				defended---stratified leakage-controlled splits, macro-averaged metrics, corrected
+				significance testing, and a measured human ceiling---are established in the
+				methodological and clinical literature
+				\citep{gutierrez2016,noyan2022,baccianella2009,dietterich1998,%
+				nadeau2003,bouckaert2004,schaap2022}
+				but are not yet standard in agricultural computer vision.
+
+				This study applies the fourth set of standards to the first set of methods, on a
+				task where neither has previously been brought to bear, with one substitution: an
+				author--expert agreement reference in place of a measured human ceiling.
+
+		%=====================================================================
+		\section{MATERIALS AND METHODS}\label{sec:methods}
+
+			This chapter describes the research design, data sources, annotation procedure,
+			evaluation protocol, FAWCheck v1 baseline, models, training procedure, evaluation methods, and statistical analysis used to compare
+			ordinal and multi-class severity models for FAWCheck. Every rule in this chapter,
+			including readouts, the merge rule, the tuning budget, decision rules, and the
+			responses to a failed sensitivity check, is fixed before any ordinal model is
+			trained, and any deviation is reported. The four models compared receive identical
+			folds, backbone, imbalance handling, augmentation, tuning budget, and computing
+			environment.
+
+			\subsection{Research Design}\label{sec:design}
+
+				The study follows a comparative experimental design consisting of:
+
+				\begin{enumerate}
+					\item \textbf{Audit and rebuilding of the evaluation protocol}
+						(see \secref{sec:protocol}).
+					\item \textbf{Expansion and labeling of the dataset}, prioritizing the upper
+						severity range, and \textbf{collection of a Philippine external test set}
+						(see \secref{sec:data}).
+					\item \textbf{Measurement of author--expert agreement} and a
+						\textbf{label-consistency check} (see \secref{sec:annotation}).
+					\item \textbf{Re-measurement of the current FAWCheck recipe}, ported to PyTorch,
+						to measure the protocol's effect, establish the baseline, and supply the
+						variance for a sensitivity check (see \secref{sec:v1comp} and
+						\secref{sec:sensitivity}).
+					\item \textbf{Comparison of softmax classification, CORAL, CORN, and THOR} on
+						MobileNetV3Small, with corrected significance testing (see
+						\secref{sec:models} and \secref{sec:evaluation}).
+					\item \textbf{A single final evaluation on the Philippine external test set}
+						(see \secref{sec:holdout}).
+				\end{enumerate}
+
+			\subsection{Materials}\label{sec:materials}
+
+				The hardware and software used are listed in Table~\ref{tab:materials}. All runs that enter a single
+				model comparison are made in the same computing environment, and every run records the
+				environment it ran on.
+
+				\begin{table}[htbp]
+				\vspace{4ex}
+				\centering
+					\caption{Hardware and software}
+					\label{tab:materials}
+					\singlespacing\footnotesize
+					\begin{tabular}{p{3.0cm}p{6.4cm}p{4.4cm}}
+					\hline
+					\hline
+					Item & Specification & Role \\ \hline
+					Primary workstation & ASUS ROG Strix G614JV: Intel Core i7-13650HX (20 threads), 48~GB RAM,
+					NVIDIA GeForce RTX 4060 Laptop GPU (8~GB GDDR6), 2~TB storage, Ubuntu 26.04.1 LTS & All
+					training and evaluation, by default \\
+					Fallback & NVIDIA T4 GPU (16~GB GDDR6), through Google Colab & Only when the workstation is
+					unavailable or a run exceeds its GPU memory \\ \hline
+					Python, PyTorch & --- & Every model, including the re-measured v1 baseline \\
+					coral-pytorch & Reference implementation by the methods' authors \citep{raschka2022coral} &
+					CORAL and CORN layers and losses \\
+					THOR & Implemented from its paper; no published code \citep{fuchs2022} & THOR output layer and
+					loss \\
+					Keras (TensorFlow) & Inference only, on the v1 model file & Arm (a) of the protocol-effect design \\
+					Albumentations & \citet{buslaev2020} & Augmentation \\
+					scikit-learn & Stratified group $k$-fold splitter & Fold construction \\
+					imagehash & 64-bit DCT perceptual hash & Near-duplicate clustering \\ \hline\hline
+					\end{tabular}
+				\vspace{4ex}
+				\end{table}
+
+			\subsection{Data Sources}\label{sec:data}
+
+				\subsubsection{Inherited Labeled Dataset}\label{sec:inherited}
+
+					The primary dataset is the 2,084-image labeled working set assembled for
+					FAWCheck v1, each image assigned an integer score from 1 to 9 against the
+					Prasanna et al.\ foliar damage descriptors \citep{casasola2026,prasanna2018}.
+					Its composition by severity is given in Table~\ref{tab:inherited}. Scores 1
+					through 4 account for 75.8\% of the set, scores 7 through 9 for 7.4\%, and score
+					9 for four images.
+
+					\begin{table}[htbp]
+					\vspace{4ex}
+					\centering
+						\caption{Severity distribution of the inherited labeled dataset}
+						\label{tab:inherited}
+						\begin{tabular}{cccl}
+						\hline
+						\hline
+						Score & Images & \% of set & Resistance response$^{\star}$ \\ \hline
+						1 & 385 & 18.5\% & Highly resistant \\
+						2 & 318 & 15.3\% & Resistant \\
+						3 & 487 & 23.4\% & Resistant \\
+						4 & 389 & 18.7\% & Partially resistant \\
+						5 & 214 & 10.3\% & Partially resistant \\
+						6 & 137 & 6.6\% & Susceptible \\
+						7 & 98 & 4.7\% & Susceptible \\
+						8 & 52 & 2.5\% & Highly susceptible \\
+						9 & 4 & 0.2\% & Highly susceptible \\ \hline
+						Total & 2,084 & 100\% & \\ \hline\hline
+						\end{tabular}
+
+						\vspace{1ex}
+						\begin{minipage}{0.85\textwidth}
+						\singlespacing\footnotesize
+						$^{\star}$Response categories as listed in Table~\ref{tab:prasanna}.
+						\end{minipage}
+					\vspace{4ex}
+					\end{table}
+
+					Its source composition and missing per-image provenance are described under
+					\secref{sec:leakage}; provenance is reconstructed before training (see
+					\secref{sec:leakctrl}).
+
+				\subsubsection{Expansion Pool}\label{sec:expansion}
+
+					An unlabeled expansion pool is available, comprising the \texttt{maize\_faw}
+					subset of the YEESI Lab Dataset \citep{fue2022}---collected in Morogoro,
+					Tanzania, in August and September 2022, and released under a CC-BY-4.0
+					license---together with images collected locally by the project team. Not all of
+					the 726 YEESI images are usable for this study, leaving approximately 579.
+					Expansion labeling prioritizes the score 6--9 range, where the inherited dataset
+					is thinnest.
+
+					The YEESI imagery differs from the
+					deployment context in cultivar, soil, background vegetation, and ambient light,
+					and 337 of its approximately 579 usable images were captured on an action camera
+					rather than a phone. It is therefore used as training data, not as a validation
+					or test population.
+
+					\textit{Expansion target.} Labeling continues until every score holds at least
+					100 images in the cross-validation pool, counting inherited and newly labeled
+					images together and excluding the Philippine external test set. Where a score
+					cannot reach 100 from the available sources, its minimum is 15 images, the
+					threshold of the merge rule. On current counts, scores 1 through 6 already
+					exceed 100 (Table~\ref{tab:inherited}). Score 7 needs at least 2 more images,
+					score 8 at least 48, and score 9 at least 96, or at least 11 to reach the
+					minimum.
+
+				\subsubsection{Philippine External Test Set}\label{sec:holdout}
+
+					An external test set of at least 150 images is drawn exclusively from new
+					photographs collected locally by the project team on phones, the deployment
+					device. None comes from the inherited dataset or the YEESI pool, so the external
+					test set is independent of both v1's labeling and the Tanzanian imagery.
+					External test images are labeled through the same pipeline as the expansion pool
+					(see \secref{sec:labeling}). They are reserved before folds are built, excluded
+					from cross-validation and from every model-selection step, and evaluated once,
+					after the final models are trained. No external test image may share a
+					near-duplicate cluster with any cross-validation image, and a plant photographed
+					more than once contributes to only one side.
+
+					The external test set keeps the severity distribution of the photographs as
+					collected rather than being balanced across scores, since its purpose is to
+					estimate performance on the images FAWCheck will actually receive. It therefore
+					supports overall measures and severe-damage recall, with wide intervals at the
+					rare scores, but not per-score claims at scores 8 and 9.
+
+			\subsection{Expert Annotation, Agreement, and Label Consistency}\label{sec:annotation}
+
+				\subsubsection{Labeling Procedure for New Images}\label{sec:labeling}
+
+					Every newly labeled image, in the expansion pool and the Philippine external
+					test set, is scored independently by two people against the Prasanna et
+					al.\ descriptors \citep{prasanna2018}: the author, and an expert from the IPB
+					Entomology Laboratory. The expert scores each image before seeing the author's
+					score, so that the two scores are independent and free of anchoring. The expert
+					then sees the author's score and assigns the final label, which is the label
+					used for training and evaluation.
+
+					Each image's three scores are recorded in an expert correction log: the author's
+					score, the expert's independent score, and the final score, with the expert's
+					reason wherever the final score differs from either. The log distinguishes two
+					kinds of change. First, a \textit{correction} is a final score that differs from
+					the author's. Second, a \textit{revision} is a final score that differs from the
+					expert's own independent score after seeing the author's. Because revisions move
+					the final label toward the author's judgment, their frequency is reported as a
+					direct measure of how much the author's score influenced the final labels.
+
+					\textit{Photo adequacy.} Before scoring, the expert checks three conditions for
+					each new image: the whorl and furl are visible, the image is in focus, and the
+					plant fills enough of the frame for the descriptors to be applied. An image that
+					fails any of them is recorded as unscorable and excluded from training and
+					evaluation. Unscorable images are counted, and their rate in the external test
+					set is reported as the share of field photographs FAWCheck could not score. 
+
+				\subsubsection{Author--Expert Agreement}\label{sec:agreement}
+
+					Agreement between the author's and the expert's independent scores is computed
+					on all newly labeled images as quadratic weighted kappa, macro-averaged MAE,
+					exact agreement, and within-one-level agreement. It is reported separately for
+					the expansion images and the external test set, since expansion labeling
+					concentrates on scores 6 through 9 while the external test set follows its
+					as-collected distribution, and by score group within each.
+
+					This agreement is a human reference point, not a ceiling (see \secref{sec:scope} and \secref{sec:humanref}). Disagreement is
+					expected to concentrate in the mid-to-upper range, where rater reproducibility
+					on this scale is reported to be worst \citep{srinivasan2022}.
+
+				\subsubsection{Label Consistency Across Near-Duplicates}\label{sec:consistency}
+
+					The inherited 2,084 labels are not re-scored. Their consistency is checked using
+					the near-duplicate clusters formed for fold construction, which are formed
+					without reference to labels. Images in one cluster are usually photographs of
+					the same plant and should carry the same score. For every cluster of two or more
+					images, this check reports whether its labels disagree, the share of multi-image
+					clusters that do, and the mean absolute difference between paired labels,
+					overall and by score. The same check is applied to the newly labeled images.
+
+					The check can reveal inconsistent labeling but cannot establish that
+					labels are accurate: a cluster may hold different plants
+					photographed alike, or one plant whose damage changed between
+					photographs, and near-duplicates were probably labeled together by
+					the same person. Discordant clusters are reported, not relabeled.
+
+			\subsection{Evaluation Protocol}\label{sec:protocol}
+
+				\subsubsection{Why the Inherited Partition Is Discarded}\label{sec:discard}
+
+					A file-level audit of the inherited partition, conducted by direct
+					count and hashing of the dataset directories rather than from the v1
+					study's reported figures, finds it non-representative (see
+					Appendix~B). Score 1 is 11.7\% of training but 47.0\% of
+					validation; score 6 has no test images and score 9 none in
+					validation or test; and because validation results guided model
+					selection in v1 \citep{casasola2026}, checkpoints were selected
+					against a distribution dominated by score 1. These defects lie in
+					how the data were divided, not in the data or their class imbalance,
+					so any comparison computed on this partition measures the partition,
+					and it is discarded rather than patched.
+
+				\subsubsection{Repeated Stratified Group Cross-Validation}\label{sec:cv}
+
+					Evaluation uses five-fold cross-validation repeated over three random seeds, for
+					fifteen train-and-evaluate runs. Folds are constructed with stratification on
+					the merged label (see \secref{sec:merge}) and grouping on near-duplicate cluster
+					(see \secref{sec:leakctrl}). Training uses the full nine-level score; the merged
+					label governs fold assignment only.
+
+					At $n = 2{,}084$, each fold holds approximately 417 images, including
+					approximately 20 score-7 and 11 score-8 images. These supports are thin enough
+					to require confidence intervals on per-class metrics and substantial enough for
+					those intervals to be meaningful.
+
+					No fold's validation data influence training on that fold, including early
+					stopping, checkpoint selection, and any threshold tuning.
+
+				\subsubsection{Leakage and Provenance Controls}\label{sec:leakctrl}
+
+					\begin{itemize}
+						\item \textit{Near-duplicate grouping.} The v1 dataset retained
+						multiple images of the same plant \citep{casasola2026}, which leak across random splits (see \secref{sec:leakage}).
+						Near-duplicate cluster is therefore the primary grouping key.
+						Clusters are connected components of a 64-bit perceptual hash at
+						a label-blind calibrated threshold, checked by an embedding-based review of a random sample (see Appendix~A). Each
+						cluster is indivisible in fold assignment.
+						\item \textit{Provenance tagging.} Because source and capture artifacts can
+							correlate with class \citep{noyan2022}, each image is tagged with its
+							source---v1 field, v1 public, YEESI, or local collection---and
+							performance is reported by source. If field-photograph performance is materially worse
+							than public-image performance, that gap is the deployment-relevant
+							estimate.
+						\item \textit{Device tagging.} Capture device is recorded, and performance is reported by device. Device is not a grouping key because,
+							where device correlates with severity, device grouping makes
+							stratification impossible and yields folds that measure the device gap
+							rather than model quality.
+					\end{itemize}
+
+			\subsection{FAWCheck v1 Baseline and Protocol Effect}\label{sec:v1comp}
+
+				\subsubsection{Baseline Re-Measurement}\label{sec:baseline}
+
+					The current model is re-measured by retraining its recipe, ported to PyTorch
+					(see \secref{sec:recipe}), and that figure---not the v1 published figure---is
+					the baseline against which improvement is claimed. The port is read out by
+					argmax, as v1 was \citep{casasola2026}, with its median readout also reported.
+					Porting keeps the baseline in the same framework and computing environment as
+					the four models compared (see \secref{sec:materials}), so a difference between
+					them cannot reflect the framework. However, the baseline is then a
+					reimplementation. Keras and torchvision distribute separately trained ImageNet
+					weights for MobileNetV3Small, each expecting its own input scaling, so the
+					re-measured figure describes v1's \textit{recipe}, not the v1 model file.
+
+					The v1 published results are reported for context only in
+					Table~\ref{tab:v1perf}, with confidence intervals computed for this study from
+					the published counts, since the v1 study reports none \citep{casasola2026}. The two sets of figures rest on different evaluation sets, the v1 set over-representing severe damage about twofold (see Appendix~B), and are not directly comparable.
+
+					\begin{table}[htbp]
+					\vspace{4ex}
+					\centering
+						\caption{FAWCheck v1 reported performance with recomputed 95\% confidence
+						intervals (Wilson score method)}
+						\label{tab:v1perf}
+						\begin{tabular}{lccc}
+						\hline
+						\hline
+						Reported measure & Point estimate & 95\% CI & Width \\ \hline
+						CNN exact accuracy (34/68) & 50.00\% & [38.4\%, 61.6\%] & 23.1 pp \\
+						CNN within $\pm 1$ level (52/68) & 76.47\% & [65.1\%, 85.0\%] & 19.8 pp \\
+						System exact agreement (69/83) & 83.13\% & [73.7\%, 89.7\%] & 16.0 pp \\
+						System within $\pm 1$ level (75/83) & 90.36\% & [82.1\%, 95.0\%] & 12.9 pp
+						\\ \hline\hline
+						\end{tabular}
+					\vspace{4ex}
+					\end{table}
+
+					The v1 CNN macro F1 of 0.4105 is not carried forward as a target:
+					its evaluation set held one image at score 9 and two at score 8, too
+					few for a stable per-class F1.
+
+				\subsubsection{The v1 Recipe and Its Port}\label{sec:recipe}
+
+					The recipe is read from the trained v1 model file,
+					\texttt{fawcheck\_finetuned.keras}, by parsing its saved
+					configuration without executing it, and from the v1 manuscript
+					\citep{casasola2026}; Table~\ref{tab:recipe} (see
+					Appendix~D) lists each setting and its PyTorch counterpart.
+					The file does not record five settings: the number of epochs, the
+					batch size, the stopping and checkpoint criterion, any class
+					weighting, and whether a phase training only the output layer
+					preceded fine-tuning. These are filled with stated defaults, which
+					are replaced if v1's training code becomes available. Since the purpose is to measure
+					v1's recipe as it was, its quirks are reproduced rather than
+					corrected, including a contrast augmentation that only ever
+					increases contrast. The baseline receives v1's four augmentations
+					only; the phone degradations (see \secref{sec:augment}), linear
+					probing before fine-tuning, and classifier retraining belong to this
+					study's training procedure and are not applied to it.
+
+				\subsubsection{Separating the Protocol from the Model}\label{sec:armdesign}
+
+					Specific Objective 4 asks how much of a change in measured performance is due to
+					the evaluation protocol rather than to the model. The port is therefore trained
+					and evaluated four ways, and only adjacent pairs are compared:
+
+					\begin{itemize}
+						\item \textit{(a) The v1 model file}, run for inference only, on the
+							inherited test split (Table~\ref{tab:partition}).
+						\item \textit{(b) The port under the inherited partition:} trained on the
+							inherited training split, with checkpoints selected on the inherited
+							validation split as in v1 \citep{casasola2026}, and evaluated on the
+							inherited test split, over three seeds.
+						\item \textit{(c) The port under the rebuilt protocol, on the same images:}
+							the 2,084 inherited images only, under the five-fold, three-seed
+							stratified group cross-validation (see \secref{sec:cv}), evaluated out
+							of fold.
+						\item \textit{(d) The port under the rebuilt protocol, on the full
+							cross-validation pool} after expansion. This is the baseline described
+							under \secref{sec:baseline}.
+					\end{itemize}
+
+					The difference between (a) and (b) is the port's fidelity: framework, pretrained checkpoint, the defaults of Table~\ref{tab:recipe}, and seed. The difference between (b) and (c) is the protocol's effect, the
+					quantity Objective 4 asks for. The recipe, framework, and images are the same in
+					both; what differs is how the images are partitioned, whether near-duplicates
+					may straddle training and evaluation, and which images the result is computed
+					on. The difference between (c) and (d) reflects the added data. Each figure is
+					reported with its cluster-level bootstrap interval, under the same metrics as
+					the other models. No significance test is applied to the (b)--(c) comparison,
+					since (b) rests on a single partition.
+
+					Two limits apply to arms (a) and (b). First, they use v1's partition
+					but not v1's evaluation set: the inherited test split holds 146
+					images, whereas v1 reported its CNN results on 68
+					\citep{casasola2026}. Second, the test split has no images at scores
+					6 and 9 (Table~\ref{tab:partition}), so macro-averaged MAE under (a)
+					and (b) averages over the other seven scores only.
+
+			\subsection{Models Compared}\label{sec:models}
+
+				\subsubsection{Comparison Set}\label{sec:compset}
+
+					Four models are compared (Table~\ref{tab:models}), all on the current MobileNetV3Small backbone
+					\citep{howard2019}, so that differences between output layers are not confounded with architecture
+					and the results remain comparable with v1. Softmax multi-class classification is the control and the
+					formulation of the current v1 model \citep{casasola2026}. Because CORAL and CORN guarantee that the
+					predicted probability that the score exceeds $k$ does not increase with $k$, their threshold count
+					equals the median of the predicted distribution over scores. Softmax has no readout fixed by its
+					method, so it is read out in two ways from the same trained model: the median, primary, and the
+					argmax, the rule v1 used \citep{casasola2026}.
+
+					\begin{table}[htbp]
+					\vspace{4ex}
+					\centering
+						\caption{Models compared, with output layer, loss, and readout}
+						\label{tab:models}
+						\singlespacing\footnotesize
+						\begin{tabular}{p{2.3cm}p{3.6cm}p{3.1cm}p{4.5cm}}
+						\hline
+						\hline
+						Model & Output layer & Loss & Readout to a score from 1 to 9 \\ \hline
+						Softmax (control) & 9 logits & Cross-entropy & Median of the predicted distribution (primary);
+						argmax, as in v1, also reported \\
+						CORAL \citep{cao2020} & 8 threshold logits; one shared weight vector, a bias per threshold &
+						CORAL loss & One plus the number of thresholds $k$ with predicted $P(\text{score} > k) > 0.5$ \\
+						CORN \citep{shi2023corn} & 8 conditional logits; no weight sharing & CORN conditional loss & As
+						CORAL, with $P(\text{score} > k)$ the cumulative products of the conditional outputs \\
+						THOR \citep{fuchs2022} & 1 linear unit & Thresholded pairwise ranking loss & Score whose segment
+						$[s-1, s]$ contains the output; outputs beyond the outer boundaries go to 1 or 9 \\ \hline\hline
+						\end{tabular}
+					\vspace{4ex}
+					\end{table}
+
+					The median readout is primary because the median of a predicted
+					distribution minimizes absolute error, the comparison metric, and it
+					puts softmax, CORAL, and CORN on the same statistic; reading softmax
+					by argmax alone would credit ordinal training with a gain due only
+					to the readout. The argmax result shows, at no extra training cost,
+					how much of any difference from v1 is due to the readout alone.
+
+					No ordinal head is treated as the expected winner (see
+					\secref{sec:ordinal}). A finding that ordinal training does not
+					improve severity scoring by a meaningful margin meets the first
+					specific objective, provided it is established by the equivalence
+					test (see \secref{sec:hypotheses}) rather than inferred from a
+					non-significant difference.
+
+					\textit{THOR implementation.} THOR has no published code and is
+					implemented from its paper's definitions \citep{fuchs2022}. The
+					paper's boundaries $\{-1, 0, 1, \ldots, K\}$, for classes indexed
+					from zero, become $\{0, 1, \ldots, 9\}$ here, so that score $s$
+					occupies $[s-1, s]$. The boundaries and the paper's margin $\gamma =
+					0.5$ are fixed, not tuned, since the other three models have no
+					output-layer hyperparameters. As in the paper, the loss uses pairs
+					of images with adjacent scores: each image in a batch is paired with
+					a randomly drawn training image one score higher, or one lower for
+					score 9, so the anchors keep the natural distribution in stage 1 and
+					the class-balanced distribution in classifier retraining. The output
+					layer is a single linear unit rather than the paper's two added
+					fully connected layers, to keep its capacity comparable with the
+					other three models, and it is trained by this study's procedure (see
+					\secref{sec:training}), not the paper's optimizer settings.
+
+				\subsubsection{Scope of the Comparison, and Why THOR}\label{sec:whythor}
+
+					THOR represents the regression-based family, for the reasons given
+					in \secref{sec:ordinal}. No claim is made about THOR against plain
+					regression with tuned cut-points, which its source does not test
+					\citep{fuchs2022}. Soft ordinal labels \citep{diaz2019} are
+					excluded.
+
+
+
+				\subsubsection{Imbalance Handling}\label{sec:imbalance}
+
+					Imbalance is handled by classifier retraining (cRT) \citep{kang2020}, which
+					separates the ordinal-structure effect from the imbalance-handling effect (see
+					\secref{sec:ordinal}). It is applied in two stages:
+
+					\begin{itemize}
+						\item \textit{Stage 1, representation.} Each model's full network is trained
+							with that model's own loss on the natural, instance-balanced
+							distribution of the training folds, with no rebalancing.
+						\item \textit{Stage 2, classifier retraining.} The backbone is frozen, the
+							model's output layer is re-initialized, and only that layer is retrained
+							on class-balanced samples, restarting the learning rate, for a short
+							schedule \citep{kang2020}.
+					\end{itemize}
+
+					Here the output layer is the final layer mapping the backbone's
+					pooled features to the model's outputs (Table~\ref{tab:models}).
+
+					cRT takes the same form for all four models, whereas a per-threshold
+					loss weighting has a natural form only for CORAL and CORN, and it
+					keeps the stage-1 comparison free of reweighting. Hard oversampling
+					is not used, since duplicating images from a 52-image class with
+					known near-duplicates invites memorization.
+
+				\subsubsection{Pre-Registered Merge Rule}\label{sec:merge}
+
+					The reporting rule is fixed before expansion-pool labels are collected:
+
+					\begin{quote}
+						\singlespacing
+						Any score with fewer than 15 images in the final cross-validation pool is
+						merged with the adjacent score toward the middle of the scale, repeating
+						until every merged group holds at least 15 images. Merged groups are used
+						for fold stratification, for the selection metric, and for headline metrics;
+						per-level results are reported in an appendix.
+					\end{quote}
+
+					On current counts, only score 9 ($n = 4$) triggers the rule, forming an \{8, 9\} group of 56. If the expansion target (see \secref{sec:expansion}) is met, the merge does not
+					trigger and score 9 enters the headline groups on its own; otherwise the rule
+					applies as a safeguard. Its effect on the metric is described under
+					\secref{sec:selmetric}.
+
+			\subsection{Training Procedure}\label{sec:training}
+
+				\subsubsection{Linear Probing, then Fine-Tuning}\label{sec:lpft}
+
+					Stage 1 of training follows the linear-probe-then-fine-tune (LP-FT) procedure of
+					\citet{kumar2022}. First the pretrained backbone is frozen and only the model's
+					output layer is trained, until validation macro-averaged MAE stops improving.
+					Then the whole network is unfrozen and fine-tuned at a lower learning rate.
+
+					This guards against the shift between Tanzanian action-camera
+					training images (see \secref{sec:expansion}) and Philippine phone
+					photographs at test (see \secref{sec:leakage}).
+
+					With stage 2 (see \secref{sec:imbalance}), each model is trained in three
+					phases: linear probing, fine-tuning, and classifier retraining, for every model. Tuning and phase lengths are described under
+					\secref{sec:tuning}.
+
+				\subsubsection{Model Selection}\label{sec:selection}
+
+					Early stopping and checkpoint selection use validation macro-averaged MAE,
+					computed on merged groups, with each model's primary readout (see
+					\secref{sec:compset}), and drawn only from the inner-validation split of each
+					training fold. The argmax readout of softmax is computed from the checkpoint
+					selected under its median readout, so that the two softmax results describe one
+					trained model.
+
+				\subsubsection{Augmentation}\label{sec:augment}
+
+					The augmentation follows v1 \citep{casasola2026}, extended for phone capture. v1
+					applied random horizontal flipping, random rotation, random zoom, and random
+					contrast adjustment, to cover variation in leaf orientation, camera angle,
+					distance, and lighting \citep{casasola2026}; all four are retained.
+
+					Three degradations typical of phone photographs are added: JPEG
+					compression, motion blur, and downscaling. They match the deployment
+					device, for the reason given in \secref{sec:leakage}, and the
+					phone-only external test set tests whether the robustness was
+					achieved.
+
+					The settings are given in Table~\ref{tab:augment}. The geometric settings are
+					those recorded in v1's model file (see \secref{sec:recipe}). Contrast is varied
+					symmetrically, up and down by 10\%, as v1's ``random contrast'' was evidently
+					intended (the v1 baseline keeps v1's own; see \secref{sec:recipe}). The lower
+					JPEG quality bound, $q_{\min}$, is the 5th percentile of the JPEG quality
+					estimated from the quantization tables of the locally collected phone
+					photographs, excluding the external test set, so that the trained range matches
+					the deployment device rather than a guess.
+
+					\begin{table}[htbp]
+					\vspace{4ex}
+					\centering
+						\caption{Augmentation settings, applied in the order listed}
+						\label{tab:augment}
+						\begin{tabular}{lp{7.5cm}c}
+						\hline
+						\hline
+						Transformation & Setting & Probability \\ \hline
+						Horizontal flip & --- & 0.5 \\
+						Rotation & Uniform within $\pm 36^{\circ}$, reflect padding & 1.0 \\
+						Zoom & Scale 0.9--1.1, aspect ratio preserved, reflect padding & 1.0 \\
+						Contrast & Factor 0.9--1.1 about each channel's mean & 1.0 \\
+						Motion blur & Kernel 3--7 pixels & 0.2 \\
+						Downscaling & Factor 0.5--0.9, then restored to $224 \times 224$ & 0.3 \\
+						JPEG compression & Quality $q_{\min}$--95 & 0.5 \\ \hline\hline
+						\end{tabular}
+					\vspace{4ex}
+					\end{table}
+
+					JPEG compression is applied last, because compression is the last step of a
+					phone's own image pipeline.
+
+				Two augmentations are excluded as not label-preserving, the property
+				\citet{shorten2019} call an augmentation's \textit{safety}: vertical
+				flips, which v1 also did not use \citep{casasola2026}, since whole-plant
+				photographs have a fixed stem-below, leaves-above orientation; and
+				channel shuffling and other color-space transformations, since leaf
+				color may carry information about damage and plant condition
+				\citep{shorten2019}. Contrast adjustment changes contrast without
+				altering hue and is retained. The pipeline, including its parameters and
+				probabilities, is not tuned per model.
+
+				\subsubsection{Hyperparameter Tuning and Compute Budget}\label{sec:tuning}
+
+					\textit{Inner split.} Within each outer training fold, one grouped inner split
+					divides the data about 80:20 into inner-training and inner-validation sets. It
+					uses the same stratified group splitter as the outer folds, so that no
+					near-duplicate cluster straddles the two. The inner-validation set alone governs
+					every data-dependent choice in that fold:
+
+					\begin{itemize}
+						\item when linear probing stops;
+						\item early stopping and checkpoint selection in fine-tuning and classifier
+							retraining;
+						\item the choice of hyperparameters.
+					\end{itemize}
+
+					The outer test fold is used for none of them, which avoids the bias
+					of tuning and evaluating on the same data
+					\citep{cawley2010,raschka2018}.
+
+					The settings are listed in Table~\ref{tab:training}. Hyperparameters are tuned by random search
+					\citep{bergstra2012}, and every model receives the same number of search trials, $B$, since unequal
+					tuning effort can masquerade as a difference between methods \citep{melis2018}. Phase lengths are not
+					searched. In each fold, the best trial on the inner-validation set is that fold's model and is not
+					retrained.
+
+					\begin{table}[htbp]
+					\vspace{4ex}
+					\centering
+						\caption{Training and tuning settings, identical for all four models}
+						\label{tab:training}
+						\singlespacing\footnotesize
+						\begin{tabular}{p{4.6cm}p{9.2cm}}
+						\hline
+						\hline
+						Setting & Value \\ \hline
+						Phases & Linear probing, fine-tuning, classifier retraining \\
+						Inner split & One grouped, stratified 80:20 split of each outer training fold \\
+						Search & Random search, $B$ trials per model and fold \\
+						Linear-probe learning rate & $10^{-4}$ to $3 \times 10^{-2}$, log-uniform \\
+						Fine-tuning learning rate & $10^{-6}$ to $10^{-3}$, log-uniform \\
+						Classifier-retraining learning rate & $10^{-4}$ to $3 \times 10^{-2}$, log-uniform \\
+						Weight decay & $10^{-6}$ to $10^{-2}$, log-uniform \\
+						Optimizer; batch size & AdamW; 32 (fixed) \\
+						Early stopping & Inner-validation macro-averaged MAE, patience of 8 epochs \\
+						Epoch caps & 30 (linear probing), 50 (fine-tuning), 20 (classifier retraining) \\ \hline\hline
+						\end{tabular}
+					\vspace{4ex}
+					\end{table}
+
+					\textit{Compute budget.} $B$ is fixed from a compute budget of 56 GPU-hours on
+					the primary workstation, the lower end of the 56--84 hours available.
+
+					\begin{itemize}
+						\item Once step 1 of the sensitivity check (see \secref{sec:sensitivity})
+							has measured the cost of one training, $B$ is set to the largest value
+							for which the projected total fits within 56 hours with a 10\%
+							contingency. The total covers the v1 baseline, the primary comparison, and the final models.
+						\item $B$ is written into the study record before any ordinal model is
+							trained.
+						\item Hours beyond 56 are not used to raise $B$. They go to reruns.
+					\end{itemize}
+
+				\subsubsection{Final Models}\label{sec:final}
+
+					Cross-validation estimates the performance of a training procedure. The final
+					model of each method is therefore obtained by applying that same procedure once
+					to the whole cross-validation pool: a grouped inner split of the pool, the same
+					tuning budget $B$, and the three training phases with early stopping. This
+					follows the practice of refitting with the selected settings on all available
+					training data after model selection \citep{raschka2018}.
+
+					Each method's final model is trained with three seeds. The external test result for a method is the mean over its seeds,
+					with their range, so that training variation is separated from external test
+					sampling variation. All methods, including the v1 port, are scored on the external test set once and descriptively. The
+					external test set is never used to choose among them. 
+
+
+			\subsection{Evaluation Methods}\label{sec:evaluation}
+
+				\subsubsection{Selection Metric}\label{sec:selmetric}
+
+					Models are selected on macro-averaged MAE, computed per true class on merged
+					groups and then averaged across classes \citep{baccianella2009}:
+					\[
+						\mathrm{MAE}^{M} = \frac{1}{G} \sum_{g} \frac{1}{|g|} \sum_{i:\, y_i \in g}
+						\lvert \hat{y}_i - y_i \rvert,
+					\]
+					where $G$ is the number of merged groups (nine if no merge triggers) and $y_i$
+					and $\hat{y}_i$ are the reference and predicted scores on the original 1--9
+					scale. The inner mean runs over the images whose reference score falls in group
+					$g$. Merging therefore changes only how classes are weighted: a reference 9
+					predicted as 8 still counts as an error of one. Macro-averaged mean squared
+					error, $\mathrm{MSE}^{M}$, is defined in the same way with squared errors
+					\citep{baccianella2009}. Quadratic weighted kappa is deliberately not the selection metric, for the reasons given under \secref{sec:evalmethods}. Because a thin class can move macro-averaged MAE, its stability is measured through the repeated cross-validation and bootstrap protocol rather than assumed.
+
+				\subsubsection{Reported Metrics}\label{sec:metrics}
+
+					Reported alongside the selection metric are the measures in
+					Table~\ref{tab:metrics}. Every metric is reported for softmax under both
+					its median and argmax readouts, with the median used in the primary
+					comparisons. Results are also broken down by source and by device, with
+					per-class confidence intervals throughout.
+
+					\begin{table}[htbp]
+					\vspace{4ex}
+					\centering
+						\caption{Metrics reported alongside the selection metric}
+						\label{tab:metrics}
+						\singlespacing\footnotesize
+						\begin{tabular}{p{4.6cm}p{9.2cm}}
+						\hline
+						\hline
+						Metric & Purpose \\ \hline
+						Quadratic weighted kappa \citep{cohen1968} & Comparability with the medical
+						grading and agricultural literature \\
+						Macro-averaged MSE \citep{baccianella2009} & Outlier-sensitive measure for
+						Specific Objective 2 \\
+						Root mean squared error & Comparability with \citet{shi2023corn} \\
+						Plain MAE; within-one-level accuracy & Unweighted summaries of error \\
+						Band-crossing error rate; resistance-response confusion matrix & Share of
+						predictions in a different response category from the reference (see
+						\secref{sec:background}), since macro-averaged MAE weights band-crossing and
+						within-band errors equally \\
+						Severe-damage recall & Share of images with a reference score of 6 or above,
+						the susceptible and highly susceptible categories of \citet{prasanna2018},
+						that the model also scores at 6 or above. A severe image scored 5 is a miss,
+						because that step crosses into the partially resistant category \\
+						Exact accuracy; macro F1 & Continuity with v1, subject to the caveats under
+						\secref{sec:baseline} \\
+						Full confusion matrices & Per level and per merged group \\ \hline\hline
+						\end{tabular}
+					\vspace{4ex}
+					\end{table}
+
+				\subsubsection{Human Reference}\label{sec:humanref}
+
+					The author's agreement with the expert is reported beside the
+					headline figures. This follows a weaker form of the pattern of
+					\citet{schaap2022}. Each model and the author are compared under the
+					same conditions. Both are scored on exactly the same newly labeled
+					images. Both are also checked against the same reference, which is
+					the expert's independent score. For expansion images in the
+					cross-validation pool, the model's scores are its out-of-fold
+					predictions, averaged over the three seeds. For external test images,
+					they are the predictions of the final models.
+
+					Two figures are reported side by side for each model. The first is
+					the model's macro-averaged MAE against the expert. The second is the
+					author's macro-averaged MAE against the expert on the same images.
+					Each comes with a 95\% cluster bootstrap interval (see
+					\secref{sec:stats}), and quadratic weighted kappa is reported with
+					them. The comparison is descriptive, so no margin or verdict is
+					applied. If a model's agreement approaches the author's, the model
+					rates about as consistently as a person trained on the rubric. This
+					does not show that it rates as an expert would (see
+					\secref{sec:agreement}). Expansion labeling concentrates on scores 6
+					through 9, so the expansion-image result describes the severe range
+					only.
+
+			\subsection{Statistical Analysis}\label{sec:statanalysis}
+
+				\subsubsection{Statistical Comparison}\label{sec:stats}
+
+					Because repeated cross-validation folds share training data, a naive paired
+					\textit{t}-test across the fifteen runs is anti-conservative
+					\citep{dietterich1998}. Model comparisons therefore use the corrected resampled
+					\textit{t}-test \citep{nadeau2003}. Bootstrap confidence intervals resample at
+					the level of the near-duplicate cluster rather than the image, since image-level
+					resampling on data containing near-duplicates yields intervals that are too
+					narrow. Because grouped folds vary slightly in size, the test-to-training size
+					ratio in the correction is taken as its mean across folds. Bootstrap intervals
+					use 2,000 resamples and the percentile method. Clusters are resampled within
+					score strata, so that every score is present in every resample, as
+					macro-averaged metrics require. 
+
+				\subsubsection{Sensitivity Check Before the Model Comparison}\label{sec:sensitivity}
+
+					Before any ordinal model is trained, a sensitivity power analysis
+					\citep{lakens2022} checks whether the design, at its fixed sample size, power,
+					and $\alpha$, can detect the smallest effect of interest defined below. Its
+					steps, and the responses if it fails, are fixed here.
+
+					\textit{Smallest effect of interest.} The smallest effect of interest is a
+					reduction of 0.10 in macro-averaged MAE, for an ordinal model relative to the
+					median-readout softmax control. That is one fewer one-step error for every ten
+					images in each class. It is set by what would matter in use, not estimated from
+					preliminary runs, since power analyses built on pilot effect sizes are biased
+					\citep{albers2018}, and it is not revised after any result is seen. The baseline
+					run in step 1 is used only for its variance.
+
+					\textit{Primary comparisons.} The check is computed for the three primary
+					comparisons: CORAL, CORN, and THOR, each against the median-readout softmax
+					control on macro-averaged MAE. Each is assessed at $\alpha' = 0.05/m$ for $m$
+					primary comparisons, the strictest step of the Holm procedure that governs the
+					tests. Because the variance bound in step 1 applies to any pair of models, the
+					check also covers the secondary comparisons of Specific Objective 2.
+
+					\textit{Step 1: measure the variance on the current images.} The v1
+					recipe is run on the current 2,084 images under the rebuilt
+					protocol, which is arm (c) of the protocol-effect design (see
+					\secref{sec:armdesign}) and so needs no extra training. Its fifteen
+					per-fold macro-averaged MAE values, under the median readout, give
+					the variance from which the smallest effect detectable at 80\%
+					power, $\delta$, is computed with the corrected resampled standard
+					error \citep{nadeau2003}; the derivation is given in
+					Appendix~C.
+
+					\textit{Step 2: project to the planned 2,230 images.} The expansion
+					target adds 146 images, all at scores 7--9 (see
+					\secref{sec:expansion}), so $\delta$ is projected class by class to
+					the planned per-fold test counts (see Appendix~C).
+					Once expansion is complete, the detectable effect is recomputed from
+					the actual baseline run (arm (d)) and reported with the results,
+					whatever it shows.
+
+					\textit{Step 3: decide.} The check passes if the projected $\delta$ is no larger
+					than the smallest effect of interest. If it passes, the comparison proceeds as
+					planned. If it fails, the following responses are taken in this order, and the
+					first that passes is adopted:
+
+					\begin{enumerate}
+						\item \textit{Expand further.} The projection is repeated at larger planned
+							counts to find the expansion that would pass. This response is taken if
+							those labels can be obtained from the expansion pool and local
+							collection within the study's timeline.
+						\item \textit{Report the ordinal comparison as exploratory.} All four models
+							are still trained and reported with their confidence intervals, but no
+							significance test is reported as confirmatory, and no conclusion is
+							drawn that ordinal training does or does not improve severity scoring.
+							Pre-specifying which analyses are confirmatory keeps hypothesis testing
+							distinct from hypothesis generation \citep{nosek2018}. Under this
+							outcome, the rebuilt protocol, its measured effect (Specific Objective
+							4), and the label-consistency findings become the study's primary
+							contribution.
+					\end{enumerate}
+
+					The check, its inputs, and the response taken are reported in full.
+
+				\subsubsection{Hypothesis Tests}\label{sec:hypotheses}
+
+					Two families of one-sided tests are specified (Table~\ref{tab:hypotheses}).
+					Each has familywise $\alpha = 0.05$, controlled by Holm's procedure \citep{holm1979}.
+
+					\begin{itemize}
+						\item \textit{Family A} carries Specific Objective 1.
+						\item \textit{Family B} carries the two published expectations of Specific
+							Objective 2, in the directions reported by \citet{shi2023corn} and
+							\citet{fuchs2022}. The direction of the MSE test comes from text-review
+							data only; on image data, \citet{shi2023corn} report CORN ahead on both
+							MAE and RMSE.
+					\end{itemize}
+
+					Each test uses the corrected resampled \textit{t}-test (see \secref{sec:stats}),
+					with softmax read out by its median.
+
+					\begin{table}[htbp]
+					\vspace{4ex}
+					\centering
+						\caption{Pre-registered hypothesis tests}
+						\label{tab:hypotheses}
+						\begin{tabular}{lcll}
+						\hline
+						\hline
+						Family & Objective & One-sided comparison & Metric \\ \hline
+						A (primary) & 1 & CORAL better than softmax & Macro-averaged MAE \\
+						A (primary) & 1 & CORN better than softmax & Macro-averaged MAE \\
+						A (primary) & 1 & THOR better than softmax & Macro-averaged MAE \\
+						B (secondary) & 2 & CORN better than CORAL & Macro-averaged MAE \\
+						B (secondary) & 2 & CORAL better than CORN & Macro-averaged MSE \\
+						B (secondary) & 2 & THOR better than CORAL & Macro-averaged MAE
+						\\ \hline\hline
+						\end{tabular}
+					\vspace{4ex}
+					\end{table}
+
+					Each Family A comparison is also given an equivalence test: two one-sided tests
+					against bounds of $\pm 0.10$ macro-averaged MAE, the smallest effect of
+					interest, using the same corrected standard error. Equivalence is shown when the
+					$(1-2\alpha')$ interval of the difference lies entirely within the bounds, with
+					$\alpha'$ Holm-adjusted across the family. An equivalence test asks whether an
+					effect is smaller than the smallest effect of interest, which is what allows a
+					null result to be informative \citep{lakens2017,lakens2018}. Each Family A
+					comparison is reported under one of four outcomes:
+
+					\begin{itemize}
+						\item significant and not equivalent: the ordinal model is better by a
+							meaningful margin;
+						\item significant and equivalent: it is better, but by less than the
+							smallest effect of interest;
+						\item not significant and equivalent: a meaningful improvement is ruled out;
+						\item not significant and not equivalent: inconclusive.
+					\end{itemize}
+
+					Family B carries no equivalence test, since the smallest effect of interest is
+					defined on macro-averaged MAE alone.  All other comparisons in the study are descriptive: they are
+					reported with estimates and confidence intervals but no significance test.
+
+		%=====================================================================
+		%Chapters IV and V are written after the experiments
+		\section{RESULTS AND DISCUSSION}\label{sec:results}
+
+			\textit{To be written after the experiments are complete.}
+
+		\section{SUMMARY AND CONCLUSION}\label{sec:conclusion}
+
+			\textit{To be written after the experiments are complete.}
+
+		%References command
+		%Parameter is the references bib file without extension
+		\makereferences{references}
+
+		%=====================================================================
+		%Appendices
+		\section{APPENDICES}\label{sec:appendices}
+		\doublespacing
+
+			\subsection{Appendix A. Near-Duplicate Clustering Procedure}\label{app:neardup}
+
+				Near-duplicate clusters (see \secref{sec:leakctrl}) are built in five
+				steps:
+
+				\begin{itemize}
+					\item \textit{Hash.} A 64-bit DCT perceptual hash is computed after EXIF
+						orientation, and the smaller Hamming distance of each image and its
+						horizontal mirror is used.
+					\item \textit{Calibrate.} The threshold $T$ is the smallest distance that
+						captures at least 95\% of synthetic copies of 200 random images (JPEG
+						quality 70--95, resized to 50--100\%, cropped by up to 10\%) while
+						admitting under 0.1\% of pairs from sources that cannot share a plant,
+						such as v1 field and YEESI images.
+					\item \textit{Inspect.} Pairs within four bits of $T$ are reviewed with
+						labels hidden; $T$ is adjusted once if they show systematic errors,
+						then frozen before folds are built.
+					\item \textit{Cluster.} Clusters are connected components of pairs at
+						distance $\le T$; any cluster over 20 images is checked for chaining
+						and split where it joins unrelated images.
+					\item \textit{Second pass.} Because hashing misses the same plant
+					photographed from a new angle, each image's five nearest neighbors
+					by cosine similarity of frozen backbone features are reviewed for a
+					random sample of 200 images. A sampled image is a miss if a neighbor
+					is confirmed to be the same plant but lies in a different cluster.
+					If 5 or more of the 200 (2.5\%) are misses, the review is extended
+					to every image. Confirmed same-plant pairs are added to the clusters
+					in either case.
+				\end{itemize}
+
+				The threshold, calibration distributions, inspection counts, cluster sizes, and the second-pass miss count and additions are reported with the dataset.
+
+			\subsection{Appendix B. Audit of the Inherited Partition}\label{app:partition}
+
+				\setcounter{table}{0}\renewcommand{\thetable}{B.\arabic{table}}
+
+				A file-level audit of the inherited partition, conducted by direct count and
+				hashing of the dataset directories rather than from the v1 study's reported
+				figures, establishes the distribution in Table~\ref{tab:partition}.
+
+				\begin{table}[htbp]
+				\vspace{4ex}
+				\centering
+					\caption{Inherited train/validation/test partition by severity score}
+					\label{tab:partition}
+					\begin{tabular}{ccccc}
+					\hline
+					\hline
+					Score & Train & Validation & Test & Total \\ \hline
+					1 & 186 & 166 & 33 & 385 \\
+					2 & 232 & 45 & 41 & 318 \\
+					3 & 434 & 40 & 13 & 487 \\
+					4 & 324 & 37 & 28 & 389 \\
+					5 & 168 & 25 & 21 & 214 \\
+					6 & 127 & 10 & 0 & 137 \\
+					7 & 78 & 15 & 5 & 98 \\
+					8 & 32 & 15 & 5 & 52 \\
+					9 & 4 & 0 & 0 & 4 \\ \hline
+					Total & 1,585 & 353 & 146 & 2,084 \\ \hline\hline
+					\end{tabular}
+				\vspace{4ex}
+				\end{table}
+
+				Consequently, the partition has four distinct defects:
+
+				\begin{itemize}
+					\item \textit{The validation split is not distributionally representative.}
+						Score 1 is 11.7\% of training but 47.0\% of validation; score 3 is
+						27.4\% of training but 8.9\% of test.
+					\item \textit{Two classes are unevaluable.} Score 6 has 127 training images
+						and none in test, so its test recall is undefined. Score 9 appears only
+						in training and has never been validated or tested.
+					\item \textit{Checkpoint selection was biased.} Because validation results
+						guided model selection in v1 \citep{casasola2026}, selection was
+						performed against a distribution dominated by score 1---the class with
+						the least operational significance, since it denotes no visible damage.
+					\item \textit{Training and evaluation distributions diverge.} Scores 5--9
+						constitute 25.8\% of the training split but 47.1\% of the 68-image set
+						on which the CNN was evaluated \citep{casasola2026}, over-representing
+						severe damage by approximately twofold.
+				\end{itemize}
+
+				These defects lie in how the data were divided, not in the data or their class
+				imbalance, so any comparison computed on this partition measures the partition,
+				and it is discarded rather than patched. The v1 study makes no claim that its
+				split was stratified; this is an extension of that work, not a critique.
+
+			\subsection{Appendix C. Pre-Registered Analysis Plan: Derivations}\label{app:analysisplan}
+
+				This appendix gives the computations behind steps 1 and 2 of the
+				sensitivity check (see \secref{sec:sensitivity}) and the tuning fallback
+				of the compute budget (see \secref{sec:tuning}).
+
+				\textit{Step 1: measure the variance on the current images.} The v1 recipe is
+				run on the current 2,084 images under the rebuilt protocol, which is arm (c) of
+				the protocol-effect design (see \secref{sec:armdesign}) and so needs no extra
+				training. Its fifteen per-fold macro-averaged MAE values, under the median
+				readout, give a variance estimate $\hat{\sigma}^2$. The variance of a per-fold
+				\textit{difference} between two models, unobservable until both are trained, is
+				bounded by $2\hat{\sigma}^2$, its value if their errors were uncorrelated. Models
+				trained on the same folds make positively correlated errors, so the bound is
+				conservative. The corrected standard error of a difference is then
+				\[
+					\mathrm{SE} = \sqrt{\left(\frac{1}{J} +
+					\frac{n_{\text{test}}}{n_{\text{train}}}\right) \cdot 2\hat{\sigma}^2},
+				\]
+				with $J = 15$ runs and $n_{\text{test}}/n_{\text{train}}$ the mean ratio across
+				folds \citep{nadeau2003}, and the smallest detectable effect at 80\% power is
+				\[
+					\delta = \left(t_{1-\alpha'/2,\,J-1} + t_{0.80,\,J-1}\right) \cdot
+					\mathrm{SE}.
+				\]
+				The baseline's variance, from v1's recipe, stands in for that of the models
+				compared, an approximation reported as such.
+
+				\textit{Step 2: project to the planned 2,230 images.} The expansion target adds
+				146 images, all at scores 7--9 (see \secref{sec:expansion}). Macro-averaged MAE
+				weights every class equally, so its variance is dominated by the classes with
+				the fewest test images, which are the classes expansion fills. The projection
+				therefore works class by class. Each class's contribution to $\hat{\sigma}^2$ is
+				scaled by the ratio of its current to its planned per-fold test count, and SE
+				and $\delta$ are recomputed. Score 9, now four images and merged with score 8,
+				enters the projection as its own class at its planned count, with the per-image
+				error variance measured for score 8. The scaling treats each class's variance as
+				arising from the size of its test sample. Variation due to training is also
+				reduced by more data, but less predictably. Once
+				expansion is complete, the detectable effect is recomputed from the actual
+				baseline run (arm (d)) and reported with the results, whatever it shows.
+
+				\textit{Tuning fallback.} If the compute budget gives $B < 5$ for the primary comparison, tuning is instead
+					nested in the first seed's five folds only. The configuration chosen
+					most often there is reused for the other two seeds, and the resulting
+					optimistic bias is reported.
+
+			\subsection{Appendix D. FAWCheck v1 Recipe and Its PyTorch Port}\label{app:recipe}
+
+				\setcounter{table}{0}\renewcommand{\thetable}{D.\arabic{table}}
+
+				Table~\ref{tab:recipe} lists each setting of the v1 recipe and its
+				PyTorch counterpart (see \secref{sec:recipe}). Some settings are not
+				recorded in the v1 model file. Their values are stated defaults, and
+				the table marks them as such.
+
+				\begin{table}[htbp]
+				\vspace{4ex}
+				\centering
+					\caption{FAWCheck v1 training recipe, as recorded in the v1 model file, and
+					its PyTorch port}
+					\label{tab:recipe}
+					\singlespacing\footnotesize
+					\begin{tabular}{p{2.6cm}p{5.6cm}p{5.6cm}}
+					\hline
+					\hline
+					Setting & v1 (Keras 3.13.2) & PyTorch port \\ \hline
+					Backbone & MobileNetV3Small, ImageNet weights, without its classification
+					top & torchvision MobileNetV3-Small, ImageNet weights, classifier removed
+					\\ \hline
+					Input & $224 \times 224$ RGB, 0--255, rescaled to $[-1, 1]$ inside the
+					network & $224 \times 224$ RGB, scaled to $[0, 1]$ and normalized with
+					ImageNet mean and standard deviation \\ \hline
+					Trainable layers & Last three inverted-residual blocks and final $1 \times
+					1$ convolution; all earlier layers frozen & The same blocks (torchvision
+					\texttt{features[9]}--\texttt{features[12]});
+					\texttt{features[0]}--\texttt{features[8]} frozen \\ \hline
+					Batch normalization & Frozen layers keep pretrained statistics; momentum
+					0.999, $\varepsilon = 0.001$ & Frozen blocks in evaluation mode; trainable
+					blocks update statistics, momentum 0.001 (PyTorch convention), $\varepsilon
+					= 0.001$ \\ \hline
+					Output layer & Global average pooling $\rightarrow$ dropout 0.3
+					$\rightarrow$ dense, 9 units, softmax; Glorot-uniform initialization &
+					Global average pooling $\rightarrow$ dropout 0.3 $\rightarrow$ linear, 9
+					units; Xavier-uniform initialization; softmax at readout \\ \hline
+					Loss & Sparse categorical cross-entropy & Cross-entropy \\ \hline
+					Optimizer & Adam, learning rate $1 \times 10^{-5}$, $\beta_1 = 0.9$,
+					$\beta_2 = 0.999$, $\varepsilon = 1 \times 10^{-7}$ & Same \\ \hline
+					Augmentation & Horizontal flip; rotation up to $\pm 36^{\circ}$; zoom up to
+					$\pm 10\%$, aspect ratio preserved; contrast factor between 1.0 and 1.1 per
+					image, about each channel's mean; reflect fill, bilinear interpolation &
+					Same transformations and parameters, applied in the same order after
+					resizing to $224 \times 224$ \\ \hline
+					Readout & Argmax & Argmax; median also reported \\ \hline
+					Class weighting & Not recorded & None (default) \\ \hline
+					Batch size & Not recorded & 32 (default) \\ \hline
+					Epochs and stopping & Not recorded; checkpoint selection guided by
+					validation results \citep{casasola2026} & Up to 50 epochs; early stopping on
+					validation loss with patience 5, best weights restored (default) \\ \hline
+					Output-layer-only phase before fine-tuning & Not recorded & None (default)
+					\\ \hline\hline
+					\end{tabular}
+				\vspace{4ex}
+				\end{table}
+
+				v1's contrast augmentation only ever increases contrast: Keras 3 bounds
+				the lower contrast factor at zero, so a factor of 0.1 yields multipliers
+				between 1.0 and 1.1. The port reproduces this rather than correcting it.
+
+	\end{mainmatter}
+\end{document}
