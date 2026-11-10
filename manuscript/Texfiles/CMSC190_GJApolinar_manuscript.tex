@@ -947,7 +947,7 @@ Shift between training and deployment imagery can also be anticipated in trainin
 						multiple images of the same plant \citep{casasola2026}, which leak across random splits (see \secref{sec:leakage}).
 						Near-duplicate cluster is therefore the primary grouping key.
 						Clusters are connected components of a 64-bit perceptual hash at
-						a label-blind calibrated threshold, checked by an embedding-based review of a random sample (see Appendix~B). Each
+						a label-blind calibrated threshold, checked by an embedding-based review of a random sample (see Appendix~B, which illustrates clusters in Figure~\ref{fig:neardup}). Each
 						cluster is indivisible in fold assignment.
 						\item \textit{Provenance tagging.} Because source and capture artifacts can
 							correlate with class \citep{noyan2022}, each image is tagged with its
@@ -1610,13 +1610,17 @@ Shift between training and deployment imagery can also be anticipated in trainin
 				\begin{minipage}{0.9\textwidth}
 				\singlespacing\footnotesize
 				Each panel is a square center crop of one image from the inherited training
-				split, labeled with its score and response (Table~\ref{tab:prasanna}). Source:
-				Inherited dataset from FAWCheck v1.
+				split, labeled with its score and response (Table~\ref{tab:prasanna}). Source
+				files, by score: (1) IMG\_1442.JPG, (2) IMG\_1563.JPG, (3) IMG\_5371.jpg,
+				(4) IMG\_5091.jpeg, (5) IMG\_4770.jpeg, (6) IMG\_4766.jpeg, (7) IMG\_4528.jpeg,
+				(8) IMG\_4518.jpeg, (9) IMG\_4486.jpeg.
 				\end{minipage}
 				\end{figure}
 				\clearpage
 
 			\subsection{Appendix B. Near-Duplicate Clustering Procedure}\label{app:neardup}
+
+				\setcounter{figure}{0}\renewcommand{\thefigure}{B.\arabic{figure}}
 
 				Near-duplicate clusters (see \secref{sec:leakctrl}) are built in five
 				steps:
@@ -1647,6 +1651,48 @@ Shift between training and deployment imagery can also be anticipated in trainin
 				\end{itemize}
 
 				The threshold, calibration distributions, inspection counts, cluster sizes, and the second-pass miss count and additions are reported with the dataset.
+
+				Figure~\ref{fig:neardup} shows three clusters from the inherited dataset,
+				with the Hamming distance $d$ of each image's hash from the first image in its row.
+
+				\begin{figure}[htbp]
+				\centering
+				\singlespacing\footnotesize
+				\setlength{\tabcolsep}{2pt}
+				\par\textit{(a) The same file saved twice, in two splits under two scores}\par\vspace{2pt}
+				\begin{tabular}{p{0.22\textwidth}p{0.22\textwidth}}
+				\includegraphics[width=0.22\textwidth]{figures/neardup/a1.jpg} & \includegraphics[width=0.22\textwidth]{figures/neardup/a2.jpg} \\
+				\centering train, score 7 \newline reference & \centering validation, score 8 \newline $d=0$ \\
+				\end{tabular}\par
+				\vspace{6pt}
+				\par\textit{(b) Burst shots of one leaf, split between training and validation}\par\vspace{2pt}
+				\begin{tabular}{p{0.22\textwidth}p{0.22\textwidth}p{0.22\textwidth}}
+				\includegraphics[width=0.22\textwidth]{figures/neardup/b1.jpg} & \includegraphics[width=0.22\textwidth]{figures/neardup/b2.jpg} & \includegraphics[width=0.22\textwidth]{figures/neardup/b3.jpg} \\
+				\centering train, score 3 \newline reference & \centering validation, score 5 \newline $d=4$ & \centering validation, score 5 \newline $d=10$ \\
+				\end{tabular}\par
+				\vspace{6pt}
+				\par\textit{(c) A four-shot sequence of one whorl, all in training}\par\vspace{2pt}
+				\begin{tabular}{p{0.22\textwidth}p{0.22\textwidth}p{0.22\textwidth}p{0.22\textwidth}}
+				\includegraphics[width=0.22\textwidth]{figures/neardup/c1.jpg} & \includegraphics[width=0.22\textwidth]{figures/neardup/c2.jpg} & \includegraphics[width=0.22\textwidth]{figures/neardup/c3.jpg} & \includegraphics[width=0.22\textwidth]{figures/neardup/c4.jpg} \\
+				\centering train, score 3 \newline reference & \centering train, score 3 \newline $d=14$ & \centering train, score 5 \newline $d=8$ & \centering train, score 5 \newline $d=10$ \\
+				\end{tabular}\par
+				\caption{Near-duplicate clusters in the inherited dataset}
+				\label{fig:neardup}
+
+				\vspace{1ex}
+				\begin{minipage}{0.9\textwidth}
+				\singlespacing\footnotesize
+				Each panel is a square center crop. Each row holds images of one plant that the
+				inherited partition treats as independent; in (a) and (b) one cluster spans two splits
+				and carries two scores. Distances use the hash of the \textit{Hash} step at an
+				illustrative threshold of 10 bits, not the calibrated $T$. In (c) the second shot is
+				14 bits from the first, beyond that threshold, but joins the cluster through the third,
+				which is 8 bits from each: clusters are connected components, not groups of
+				mutually close pairs. Source files: (a) IMG\_1689.JPG and its copy; (b)
+				IMG\_20190523\_135339\_5.jpg, \_135338\_0.jpg, \_135338\_9.jpg; (c)
+				IMG\_1266.JPG to IMG\_1269.JPG.
+				\end{minipage}
+				\end{figure}
 
 			\subsection{Appendix C. Audit of the Inherited Partition}\label{app:partition}
 
