@@ -43,6 +43,10 @@ FAWCHECK: A CNN-BASED APPROACH TO THE PRASANNA SCALE}
 		%LOT
 		\makelistoftables
 
+		%LOF
+		\setcounter{pagecounter}{\value{page}}\addtocounter{pagecounter}{-1}
+		\makelistoffigures
+
 		%ABSTRACT (not needed for the proposal; uncomment to restore)
 		\setcounter{pagecounter}{\value{page}}\addtocounter{pagecounter}{-1}
 		\begin{abstractwithpageno}
@@ -360,7 +364,8 @@ FAWCHECK: A CNN-BASED APPROACH TO THE PRASANNA SCALE}
 					from Davis and Williams (1992).'' $^{\star}$Response labels are read in order
 					from the printed column, whose entries are offset from their rows. This reading
 					assigns score 1 to highly resistant, consistent with other descriptions of the
-					scale; it is to be confirmed against a clean copy of the guide.
+					scale; it is to be confirmed against a clean copy of the guide. Figure~\ref{fig:severity}
+					(Appendix~A) shows an example image for each score.
 					\end{minipage}
 				\vspace{4ex}
 				\end{table}
@@ -910,7 +915,7 @@ Shift between training and deployment imagery can also be anticipated in trainin
 					A file-level audit of the inherited partition, conducted by direct
 					count and hashing of the dataset directories rather than from the v1
 					study's reported figures, finds it non-representative (see
-					Appendix~B). Score 1 is 11.7\% of training but 47.0\% of
+					Appendix~C). Score 1 is 11.7\% of training but 47.0\% of
 					validation; score 6 has no test images and score 9 none in
 					validation or test; and because validation results guided model
 					selection in v1 \citep{casasola2026}, checkpoints were selected
@@ -942,7 +947,7 @@ Shift between training and deployment imagery can also be anticipated in trainin
 						multiple images of the same plant \citep{casasola2026}, which leak across random splits (see \secref{sec:leakage}).
 						Near-duplicate cluster is therefore the primary grouping key.
 						Clusters are connected components of a 64-bit perceptual hash at
-						a label-blind calibrated threshold, checked by an embedding-based review of a random sample (see Appendix~A). Each
+						a label-blind calibrated threshold, checked by an embedding-based review of a random sample (see Appendix~B). Each
 						cluster is indivisible in fold assignment.
 						\item \textit{Provenance tagging.} Because source and capture artifacts can
 							correlate with class \citep{noyan2022}, each image is tagged with its
@@ -973,7 +978,7 @@ Shift between training and deployment imagery can also be anticipated in trainin
 
 					The v1 published results are reported for context only in
 					Table~\ref{tab:v1perf}, with confidence intervals computed for this study from
-					the published counts, since the v1 study reports none \citep{casasola2026}. The two sets of figures rest on different evaluation sets, the v1 set over-representing severe damage about twofold (see Appendix~B), and are not directly comparable.
+					the published counts, since the v1 study reports none \citep{casasola2026}. The two sets of figures rest on different evaluation sets, the v1 set over-representing severe damage about twofold (see Appendix~C), and are not directly comparable.
 
 					\begin{table}[htbp]
 					\vspace{4ex}
@@ -1004,7 +1009,7 @@ Shift between training and deployment imagery can also be anticipated in trainin
 					\texttt{fawcheck\_finetuned.keras}, by parsing its saved
 					configuration without executing it, and from the v1 manuscript
 					\citep{casasola2026}; Table~\ref{tab:recipe} (see
-					Appendix~D) lists each setting and its PyTorch counterpart.
+					Appendix~E) lists each setting and its PyTorch counterpart.
 					The file does not record five settings: the number of epochs, the
 					batch size, the stopping and checkpoint criterion, any class
 					weighting, and whether a phase training only the output layer
@@ -1459,12 +1464,12 @@ Shift between training and deployment imagery can also be anticipated in trainin
 					the variance from which the smallest effect detectable at 80\%
 					power, $\delta$, is computed with the corrected resampled standard
 					error \citep{nadeau2003}; the derivation is given in
-					Appendix~C.
+					Appendix~D.
 
 					\textit{Step 2: project to the planned 2,230 images.} The expansion
 					target adds 146 images, all at scores 7--9 (see
 					\secref{sec:expansion}), so $\delta$ is projected class by class to
-					the planned per-fold test counts (see Appendix~C).
+					the planned per-fold test counts (see Appendix~D).
 					Once expansion is complete, the detectable effect is recomputed from
 					the actual baseline run (arm (d)) and reported with the results,
 					whatever it shows.
@@ -1570,7 +1575,48 @@ Shift between training and deployment imagery can also be anticipated in trainin
 		\section{APPENDICES}\label{sec:appendices}
 		\doublespacing
 
-			\subsection{Appendix A. Near-Duplicate Clustering Procedure}\label{app:neardup}
+			\subsection{Appendix A. Example Images for the Prasanna Scale}\label{app:severity}
+
+				\setcounter{figure}{0}\renewcommand{\thefigure}{A.\arabic{figure}}
+
+				Figure~\ref{fig:severity} shows one image for each score of
+				Table~\ref{tab:prasanna}. The images come from the training split of the dataset
+				inherited from FAWCheck v1 (see \secref{sec:inherited}) and carry v1's labels.
+				The figure is for illustration purpose only and it does not represent as a 
+				guide or reference for image labeling.
+
+				\begin{figure}[htbp]
+				\centering
+				\singlespacing\footnotesize
+				\setlength{\tabcolsep}{2pt}
+				\begin{tabular}{ccc}
+				\includegraphics[width=0.31\textwidth]{figures/severity/score_1.jpg} &
+				\includegraphics[width=0.31\textwidth]{figures/severity/score_2.jpg} &
+				\includegraphics[width=0.31\textwidth]{figures/severity/score_3.jpg} \\
+				1: Highly resistant & 2: Resistant & 3: Resistant \\[6pt]
+				\includegraphics[width=0.31\textwidth]{figures/severity/score_4.jpg} &
+				\includegraphics[width=0.31\textwidth]{figures/severity/score_5.jpg} &
+				\includegraphics[width=0.31\textwidth]{figures/severity/score_6.jpg} \\
+				4: Partially resistant & 5: Partially resistant & 6: Susceptible \\[6pt]
+				\includegraphics[width=0.31\textwidth]{figures/severity/score_7.jpg} &
+				\includegraphics[width=0.31\textwidth]{figures/severity/score_8.jpg} &
+				\includegraphics[width=0.31\textwidth]{figures/severity/score_9.jpg} \\
+				7: Susceptible & 8: Highly susceptible & 9: Highly susceptible \\
+				\end{tabular}
+				\caption{Example images for scores 1 to 9 of the Prasanna scale}
+				\label{fig:severity}
+
+				\vspace{1ex}
+				\begin{minipage}{0.9\textwidth}
+				\singlespacing\footnotesize
+				Each panel is a square center crop of one image from the inherited training
+				split, labeled with its score and response (Table~\ref{tab:prasanna}). Source:
+				Inherited dataset from FAWCheck v1.
+				\end{minipage}
+				\end{figure}
+				\clearpage
+
+			\subsection{Appendix B. Near-Duplicate Clustering Procedure}\label{app:neardup}
 
 				Near-duplicate clusters (see \secref{sec:leakctrl}) are built in five
 				steps:
@@ -1602,9 +1648,9 @@ Shift between training and deployment imagery can also be anticipated in trainin
 
 				The threshold, calibration distributions, inspection counts, cluster sizes, and the second-pass miss count and additions are reported with the dataset.
 
-			\subsection{Appendix B. Audit of the Inherited Partition}\label{app:partition}
+			\subsection{Appendix C. Audit of the Inherited Partition}\label{app:partition}
 
-				\setcounter{table}{0}\renewcommand{\thetable}{B.\arabic{table}}
+				\setcounter{table}{0}\renewcommand{\thetable}{C.\arabic{table}}
 
 				A file-level audit of the inherited partition, conducted by direct count and
 				hashing of the dataset directories rather than from the v1 study's reported
@@ -1657,7 +1703,7 @@ Shift between training and deployment imagery can also be anticipated in trainin
 				and it is discarded rather than patched. The v1 study makes no claim that its
 				split was stratified; this is an extension of that work, not a critique.
 
-			\subsection{Appendix C. Pre-Registered Analysis Plan: Derivations}\label{app:analysisplan}
+			\subsection{Appendix D. Pre-Registered Analysis Plan: Derivations}\label{app:analysisplan}
 
 				This appendix gives the computations behind steps 1 and 2 of the
 				sensitivity check (see \secref{sec:sensitivity}) and the tuning fallback
@@ -1704,9 +1750,9 @@ Shift between training and deployment imagery can also be anticipated in trainin
 					most often there is reused for the other two seeds, and the resulting
 					optimistic bias is reported.
 
-			\subsection{Appendix D. FAWCheck v1 Recipe and Its PyTorch Port}\label{app:recipe}
+			\subsection{Appendix E. FAWCheck v1 Recipe and Its PyTorch Port}\label{app:recipe}
 
-				\setcounter{table}{0}\renewcommand{\thetable}{D.\arabic{table}}
+				\setcounter{table}{0}\renewcommand{\thetable}{E.\arabic{table}}
 
 				Table~\ref{tab:recipe} lists each setting of the v1 recipe and its
 				PyTorch counterpart (see \secref{sec:recipe}). Some settings are not
