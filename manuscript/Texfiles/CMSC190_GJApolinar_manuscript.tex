@@ -1855,21 +1855,25 @@ Shift between training and deployment imagery can also be anticipated in trainin
 				run on the current 2,084 images under the rebuilt protocol, which is arm (c) of
 				the protocol-effect design (see \secref{sec:armdesign}) and so needs no extra
 				training. Its fifteen per-fold macro-averaged MAE values, under the median
-				readout, give a variance estimate $\hat{\sigma}^2$. The variance of a per-fold
+				readout, give the sample variance $\hat{\sigma}^2$. The variance of a per-fold
 				\textit{difference} between two models, unobservable until both are trained, is
-				bounded by $2\hat{\sigma}^2$, its value if their errors were uncorrelated. Models
-				trained on the same folds make positively correlated errors, so the bound is
-				conservative. The corrected standard error of a difference is then
+				at most $2\hat{\sigma}^2$, because models trained on the same folds make
+				positively correlated errors \citep[Theorem~4.5.6]{casella2002}. The corrected
+				standard error of a difference is then
 				\[
 					\mathrm{SE} = \sqrt{\left(\frac{1}{J} +
 					\frac{n_{\text{test}}}{n_{\text{train}}}\right) \cdot 2\hat{\sigma}^2},
 				\]
 				with $J = 15$ runs and $n_{\text{test}}/n_{\text{train}}$ the mean ratio across
-				folds \citep{nadeau2003}, and the smallest detectable effect at 80\% power is
+				folds \citep{nadeau2003,bouckaert2004}. The smallest effect detectable at 80\%
+				power is a fixed multiple of this standard error, set by the significance level
+				and the power \citep{bloom1995}:
 				\[
 					\delta = \left(t_{1-\alpha'/2,\,J-1} + t_{0.80,\,J-1}\right) \cdot
-					\mathrm{SE}.
+					\mathrm{SE},
 				\]
+				which, at $\alpha' = 0.05/3$ and $J - 1 = 14$ degrees of freedom, is about
+				$3.6\,\mathrm{SE}$.
 				The baseline's variance, from v1's recipe, stands in for that of the models
 				compared, an approximation reported as such.
 
