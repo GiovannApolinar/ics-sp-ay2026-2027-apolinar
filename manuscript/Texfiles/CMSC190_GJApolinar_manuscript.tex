@@ -5,6 +5,8 @@
 \documentclass{icsthesis}
 \usepackage[T1]{fontenc}
 \usepackage{graphicx}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
 \usepackage{amsmath}
 \usepackage{array}
 \usepackage{url}
@@ -1621,6 +1623,7 @@ Shift between training and deployment imagery can also be anticipated in trainin
 			\subsection{Appendix B. Near-Duplicate Clustering Procedure}\label{app:neardup}
 
 				\setcounter{figure}{0}\renewcommand{\thefigure}{B.\arabic{figure}}
+				\setcounter{table}{0}\renewcommand{\thetable}{B.\arabic{table}}
 
 				Near-duplicate clusters (see \secref{sec:leakctrl}) are built in five
 				steps:
@@ -1629,11 +1632,18 @@ Shift between training and deployment imagery can also be anticipated in trainin
 					\item \textit{Hash.} A 64-bit DCT perceptual hash is computed after EXIF
 						orientation, and the smaller Hamming distance of each image and its
 						horizontal mirror is used.
-					\item \textit{Calibrate.} The threshold $T$ is the smallest distance that
-						captures at least 95\% of synthetic copies of 200 random images (JPEG
-						quality 70--95, resized to 50--100\%, cropped by up to 10\%) while
-						admitting under 0.1\% of pairs from sources that cannot share a plant,
-						such as v1 field and YEESI images.
+					\item \textit{Calibrate.} $T$ is chosen like the cut-off of a diagnostic
+						test, as an operating point on the ROC curve \citep{fawcett2006}: the
+						smallest distance that reaches 95\% sensitivity (the share of known
+						copies caught) while keeping the false-match rate on known non-matches
+						under 0.1\%. The known copies are synthetic copies of 200 random
+						images, each applying one edit: JPEG quality 70--95, a resize to
+						50--100\%, or a crop of up to 10\%. The known non-matches are all pairs
+						from sources that cannot share a plant, such as v1 field and YEESI
+						images. Every possible distance, from 0 to 64, is checked. If no
+						distance meets both conditions, the false-match limit is kept: $T$ is
+						the largest distance that still admits under 0.1\%, and its lower
+						sensitivity is reported.
 					\item \textit{Inspect.} Pairs within four bits of $T$ are reviewed with
 						labels hidden; $T$ is adjusted once if they show systematic errors,
 						then frozen before folds are built.
@@ -1642,12 +1652,12 @@ Shift between training and deployment imagery can also be anticipated in trainin
 						and split where it joins unrelated images.
 					\item \textit{Second pass.} Because hashing misses the same plant
 					photographed from a new angle, each image's five nearest neighbors
-					by cosine similarity of frozen backbone features are reviewed for a
+					by cosine similarity of frozen ImageNet-pretrained MobileNetV3Small
+					features are reviewed for a
 					random sample of 200 images. A sampled image is a miss if a neighbor
 					is confirmed to be the same plant but lies in a different cluster.
-					If 5 or more of the 200 (2.5\%) are misses, the review is extended
-					to every image. Confirmed same-plant pairs are added to the clusters
-					in either case.
+					If 5 or more of the 200 (2.5\%) are misses, every image is reviewed.
+					Confirmed same-plant pairs are always added to the clusters.
 				\end{itemize}
 
 				The threshold, calibration distributions, inspection counts, cluster sizes, and the second-pass miss count and additions are reported with the dataset.
@@ -1655,7 +1665,7 @@ Shift between training and deployment imagery can also be anticipated in trainin
 				Figure~\ref{fig:neardup} shows three clusters from the inherited dataset,
 				with the Hamming distance $d$ of each image's hash from the first image in its row.
 
-				\begin{figure}[htbp]
+				\begin{figure}[!ht]
 				\centering
 				\singlespacing\footnotesize
 				\setlength{\tabcolsep}{2pt}
@@ -1693,6 +1703,92 @@ Shift between training and deployment imagery can also be anticipated in trainin
 				IMG\_1266.JPG to IMG\_1269.JPG.
 				\end{minipage}
 				\end{figure}
+				\clearpage
+				\textit{Illustrative calibration run.} To show how the five steps yield $T$,
+				they were run once on the 2,084 inherited images
+				(Table~\ref{tab:calibdemo}, Figure~\ref{fig:calibcurves}). The run is for
+				illustration only. The study's $T$ is set when the procedure is run on the full
+				pool, before folds are built, and may differ. In this run, the second pass used
+				frozen ImageNet MobileNetV3Small features, and same-plant judgments were made by
+				eye.
+
+				\begin{table}[htbp]
+				\vspace{4ex}
+				\centering
+					\caption{Illustrative run of the near-duplicate procedure on the inherited dataset}
+					\label{tab:calibdemo}
+					\singlespacing\footnotesize
+					\begin{tabular}{p{1.8cm}p{5.6cm}p{6.5cm}}
+					\hline\hline
+					Step & Computation & Result in this run \\ \hline
+					Hash & 64-bit DCT hash; the smaller distance of each image and its mirror &
+					2,084 inherited and 726 YEESI images hashed \\[3pt]
+					Calibrate & 200 random inherited images, three copies each, one per edit (JPEG
+					quality 70--95, resize to 50--100\%, crop up to 10\%): 600 copies.
+					All 2,084~$\times$~726 = 1,512,984 inherited--YEESI pairs, which cannot share a
+					plant & The smallest $t$ capturing at least 95\% of copies is 12 (95.2\%; 91.7\%
+					at 10). At 12, 4 cross-source pairs (0.0003\%) match, under the 0.1\% limit.
+					$T = 12$ \\[3pt]
+					Inspect & Pairs within four bits of $T$ (distance 8--16), labels hidden & 991
+					pairs (108 at or below $T$, 883 above). Not reviewed in this run, so $T$ is not
+					adjusted \\[3pt]
+					Cluster & Connected components of pairs at distance $\le 12$ & 105 clusters
+					holding 242 images (largest: 7), plus 1,842 single images: 1,947 groups. No
+					cluster exceeds 20, so no chaining check. 20 clusters mix scores; 18 span
+					splits \\[3pt]
+					Second pass & 200 random images; the five nearest neighbors of each by cosine
+					similarity & 971 of 1,000 neighbors lie in another cluster. Neighbors whose
+					file names show consecutive shots (109) were reviewed from most similar; the
+					first 24 held 17 same-plant pairs, covering 16 sampled images (hash distance
+					14--32, all above $T$). 16 $\ge$ 5, so the review extends to every image \\
+					\hline\hline
+					\end{tabular}
+				\vspace{4ex}
+				\end{table}
+
+				\begin{figure}[htbp]
+				\centering
+				\begin{tikzpicture}
+				\begin{axis}[width=0.43\textwidth, height=5cm, xmin=0, xmax=24, ymin=60, ymax=100,
+					xtick={0,4,8,12,16,20,24}, xlabel={Threshold $t$ (bits)},
+					ylabel={Copies captured (\%)}, tick label style={font=\footnotesize},
+					label style={font=\footnotesize}, axis lines=left, enlarge x limits=false]
+				\addplot[thick, black, mark=*, mark size=1.2pt] coordinates {(0,65.7) (2,72.0)
+					(4,79.0) (6,82.3) (8,88.0) (10,91.7) (12,95.2) (14,96.3) (16,98.0) (18,99.5)
+					(20,99.5) (22,99.7) (24,99.8)};
+				\draw[densely dotted, gray] (axis cs:0,95) -- (axis cs:24,95)
+					node[pos=0.02, above right, font=\scriptsize, black] {95\%};
+				\draw[dashed, black] (axis cs:12,60) -- (axis cs:12,100)
+					node[pos=0.06, right, font=\scriptsize] {$T=12$};
+				\end{axis}
+				\end{tikzpicture}\hfill
+				\begin{tikzpicture}
+				\begin{axis}[width=0.43\textwidth, height=5cm, xmin=8, xmax=24, ymode=log,
+					ymin=1e-5, ymax=30, xtick={8,12,16,20,24}, xlabel={Threshold $t$ (bits)},
+					ylabel={Cross-source pairs admitted (\%)}, tick label style={font=\footnotesize},
+					label style={font=\footnotesize}, axis lines=left, enlarge x limits=false]
+				\addplot[thick, black, mark=*, mark size=1.2pt] coordinates {(10,0.000066)
+					(12,0.000264) (14,0.003833) (16,0.030205) (18,0.194648) (20,0.956917)
+					(22,3.671817) (24,11.063435)};
+				\draw[densely dotted, gray] (axis cs:8,0.1) -- (axis cs:24,0.1)
+					node[pos=0.02, above right, font=\scriptsize, black] {0.1\%};
+				\draw[dashed, black] (axis cs:12,1e-5) -- (axis cs:12,30)
+					node[pos=0.94, right, font=\scriptsize] {$T=12$};
+				\end{axis}
+				\end{tikzpicture}
+				\caption{Choosing $T$ in the illustrative calibration run}
+				\label{fig:calibcurves}
+
+				\vspace{1ex}
+				\begin{minipage}{0.9\textwidth}
+				\singlespacing\footnotesize
+				Left: share of the 600 synthetic copies within $t$ bits of their original.
+				Right: share of the 1,512,984 inherited--YEESI pairs within $t$ bits, on a log
+				scale; no pair is within 8 bits, so the curve starts at 10. $T$ is the smallest
+				$t$ at which the left curve reaches 95\% while the right stays below 0.1\%.
+				\end{minipage}
+				\end{figure}
+				\clearpage
 
 			\subsection{Appendix C. Audit of the Inherited Partition}\label{app:partition}
 
